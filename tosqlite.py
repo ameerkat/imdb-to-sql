@@ -1,5 +1,6 @@
 # Converts the IMDB database *.list into a SQLite datbase
 # Ameer Ayoub <ameer.ayoub@gmail.com>
+# @todo make the whole thing database agnostic so we can switch
 
 import re
 from types import StringType
@@ -16,12 +17,14 @@ class Options:
 	query_debug 		= False			# show log of all sql queries at construction time
 	clear_old_database 	= True			# clear old database file if exists
 	show_progress 		= True			# show progress (at all)
-	progress_count 		= 10000			# show progress every _n_ lines
-	commit_count 		= 10000			# commit every _n_ lines, -1 means only on completion
+	progress_count 		= 1000000		# show progress every _n_ lines
+	commit_count 		= 1000000		# commit every _n_ lines, -1 means only on completion
 										# database will commit on completion of each file regardless
 	show_time 			= True			# show the total time taken to complete
 	use_native			= False			# use native parsing operations instead of regex
-	use_dict			= True			# use a dictionary to generate movie id's in program
+	use_dict			= True			# use a dictionary to generate and cache db id's in program
+	use_cache			= True			# cache the dictionaries to the disk, must be enabled if you 
+										# you want to convert only some files and you want to use dict
 
 dicts = {}
 counts = {}
@@ -40,6 +43,7 @@ class ParseRegexes:
 	raw_name = """('.+')?\s*(([^,']*),)?\s*([^\(]+)(\((\w+)\))?"""
 	raw_movies = """"?([^"]*?)"?\s\(((\?{4}|\d+)/?(\w+)?).*?\)(\s*\((T?VG?)\))?
 		(\s*\{([^\(]*?)(\s*\(\#(\d+)\.(\d+)\))?\})?.*"""
+	raw_aka_name = """\s*\(aka ([^\)]+)\)"""
 	# compiled regex patterns for use
 	name = re.compile("""
 		('.+')?\s*				# nickname (optional, group 1)
@@ -75,6 +79,9 @@ class ParseRegexes:
 								# optional within the optional group.
 		.*						# the rest of the line, usually the redundant year/year range
 								# (optional, ungrouped)
+		""", re.VERBOSE)
+	aka_name = re.compile("""
+		\s*\(aka ([^\)]+)\)		# alias name (required, group 1)
 		""", re.VERBOSE)
 
 
@@ -232,8 +239,8 @@ def select_or_insert(connection_cursor, name, param_dict, skip_lookup = False, s
 	"""selects or inserts a row into the database, returning the appropriate id field
 	note this makes the assumption the id name is id`table_name` which is the case for the schema
 	defined above"""
+	global dicts, counts
 	row = None
-	global actors_dict, series_dict, movies_dict, actors_count, movies_count, series_count
 	unpacked = unpack_dict(param_dict)
 	select_query = build_select_query(name, param_dict)
 	if not skip_lookup:
@@ -275,6 +282,25 @@ def select_or_insert(connection_cursor, name, param_dict, skip_lookup = False, s
 			return None
 
 
+def select(connection_cursor, name, param_dict):
+	"""selects a row from the database, returning the appropriate id field
+	note this makes the assumption the id name is id`table_name` which is the 
+	case for the schema defined above"""
+	global dicts
+	unpacked = unpack_dict(param_dict)
+	if Options.use_dict:
+		if name in dicts:
+			if unpacked in dicts[name]:
+				return dicts[name][unpacked]
+	select_query = build_select_query(name, param_dict)
+	connection_cursor.execute(select_query)
+	row = connection_cursor.fetchone()
+	if row:
+		return row[0]
+	else:
+		return None
+
+
 if __name__ == "__main__":
 	if Options.show_time:
 		start = time.clock()
@@ -301,19 +327,207 @@ if __name__ == "__main__":
 		print "__main__ [status]: using python regex parsing code."
 	# Read in data from raw list files
 	
-	files_to_process = [] #["actresses", "actors"]
-	for file in files_to_process:
-		#
-		# Actors/Actresses List File
-		#
-		current_file = mk(file)
-		current_gender = ActorsGender.MALE if file=="actors" else ActorsGender.FEMALE
+	process_actors = True
+	if process_actors:
+		files_to_process = ["actresses", "actors"]
+		#files_to_process = ["actors.test"]
+		for file in files_to_process:
+		
+			#
+			# Actors/Actresses List File
+			#
+			
+			current_file = mk(file)
+			current_gender = ActorsGender.MALE if file=="actors" else ActorsGender.FEMALE
+			f = open(current_file)
+			# Skip over the information at the beginning and get to the actual data list
+			line_number = 1 
+			while(f.readline() != "----			------\n"):
+				line_number += 1
+			new_actor = True
+			for line in f:
+				if Options.show_progress and (line_number%Options.progress_count == 0):
+					print "__main__ [status]: processing line", line_number
+				if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
+					conn.commit()
+				line_number += 1
+				if line == "\n":
+					new_actor = True
+					continue
+				elif line == "-----------------------------------------------------------------------------\n":
+					# this is the last valid line before there is a bunch of junk
+					break
+				if new_actor:
+					# reset all names to defaults
+					current_lastname = ""
+					current_firstname = ""
+					current_nickname = ""
+					current_number = 0
+					# use regex to parse out name parts
+					name = line.split('\t')[0]
+					if Options.use_native:
+						m = parse.actor(name)
+						if not m:
+							print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+								"invalid name : " + name)
+						else:
+							current_nickname = m[0]
+							current_lastname = m[1]
+							current_firstname = m[2]
+							current_number = rntoi(m[3])
+					else:
+						m = re.match(ParseRegexes.name, name)
+						if not m:
+							print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+							"invalid name : " + name)
+						else:
+							current_nickname = m.group(1)
+							current_lastname = m.group(3)
+							current_firstname = m.group(4).strip() # only required field
+							current_number = rntoi(m.group(6))
+					current_actor = select_or_insert(c, "actors", {"lname" : current_lastname, 
+						"fname" : current_firstname, "mname": current_nickname, "gender": current_gender,
+						"number": current_number}, skip_lookup = True)
+				# process line
+				if new_actor:
+					new_actor = False
+					to_process = line.split('\t')[-1].strip() # use the rest of the line if we read in actor data
+				else:
+					to_process = line.strip()
+				good = False
+				n = None
+				if Options.use_native:
+					n = parse.acted_in(to_process)
+					if n:
+						good = True
+						title = n[0]
+						try:
+							year = int(n[1]) # there always has to be a year
+						except ValueError:
+							print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+							"year not valid integer value: \n\"" + to_process +"\"\n--> \t"),
+							print n,
+							quit()
+						number = rntoi(n[2]) # in roman numerals, needs to be converted
+						special_code = MoviesType.from_str(n[3])
+						special_information = n[4]
+						episode_title = n[5]
+						character_name = n[8]
+						try:
+							episode_series = int(n[6]) if n[6] else None
+							episode_number = int(n[7]) if n[7] else None
+							billing_position = int(n[9]) if n[9] else None
+						except ValueError:
+							print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+							" not valid integer value: \n\"" + to_process +"\"\n--> \t"),
+							print n,
+				else:
+					n = re.match(ParseRegexes.acted_in, to_process)
+					if n:
+						good = True
+						title = n.group(1)
+						try:
+							if n.group(3) == "????":
+								year = 0
+							else:					
+								year = int(n.group(3)) # there always has to be a year
+						except ValueError:
+							print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+							"year not valid integer value: " + to_process)
+							quit()
+						number = rntoi(n.group(4)) # in roman numerals, needs to be converted
+						special_code = MoviesType.from_str(n.group(6))
+						special_information = n.group(8)
+						episode_title = n.group(10)
+						episode_series = int(n.group(12)) if n.group(12) else None
+						episode_number = int(n.group(13)) if n.group(13) else None
+						character_name = n.group(15)
+						billing_position = int(n.group(17)) if n.group(17) else None
+				if good:
+					current_movie = select_or_insert(c, "movies", {"title": title, "year": year, 
+						"number": number, "type": special_code})
+					current_series = None
+					if episode_title:
+						current_series = select_or_insert(c, "series", {"idmovies": current_movie,
+							"name": episode_title, "season": episode_series, "number": episode_number})
+					# insert into the db the acted in information
+					select_or_insert(c, "acted_in", {"idmovies": current_movie, "idseries": current_series,
+						"idactors": current_actor, "character": character_name, "billing_position":
+						billing_position}, skip_lookup = True, supress_output = True)
+				else:
+					print("__main__ [error]: while processing" + current_file + "[" + str(line_number) + "]: " +
+					"invalid info: " + to_process)
+					if Options.use_native:
+						print "parsed as: ", n
+			f.close()
+			conn.commit()
+			print "__main__ [status]: processing of", current_file, "complete."
+		
+	#
+	# Movies List
+	#
+	process_movies = False
+	if process_movies:
+		current_file = mk("movies")
+		f = open(current_file)
+		line_number = 1 
+		# Skip over the information at the beginning and get to the actual data list
+		while(f.readline() != "===========\n"):
+			line_number += 1
+		f.readline() # skip over the blank line inbetween movie list and header
+		line_number += 1
+		for line in f:
+			if Options.show_progress and (line_number%Options.progress_count == 0):
+				print "__main__ [status]: processing line", line_number
+			if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
+				conn.commit()
+			line_number += 1
+			if line == "-----------------------------------------------------------------------------\n":
+				# this is the last valid line before there is a bunch of junk
+				break
+			m = re.match(ParseRegexes.movies, line)
+			if not m:
+				print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+				"invalid movie : " + line)
+			else:
+				title = m.group(1)
+				try:
+					if m.group(3) == "????":
+						year = 0
+					else:					
+						year = int(m.group(3)) # there always has to be a year
+				except ValueError:
+					print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+					"year not valid integer value: " + line)
+					quit()
+				number = rntoi(m.group(4)) # in roman numerals, needs to be converted
+				special_code = MoviesType.from_str(m.group(6))
+				episode_title = m.group(8)
+				episode_series = int(m.group(10)) if m.group(10) else None
+				episode_number = int(m.group(11)) if m.group(11) else None
+				current_movie = select_or_insert(c, "movies", {"title": title, "year": year, 
+					"number": number, "type": special_code})
+				if episode_title:
+					select_or_insert(c, "series", {"idmovies": current_movie,
+						"name": episode_title, "season": episode_series, "number": episode_number},
+						supress_output = True)
+		f.close()
+		conn.commit()
+		print "__main__ [status]: processing of", current_file, "complete."
+
+	#
+	# Aka-Names List File
+	#
+	process_aka_names = True
+	if process_aka_names:
+		current_file = mk("aka-names")
 		f = open(current_file)
 		# Skip over the information at the beginning and get to the actual data list
 		line_number = 1 
-		while(f.readline() != "----			------\n"):
+		while(f.readline() != "==============\n"):
 			line_number += 1
 		new_actor = True
+		is_valid = True
 		for line in f:
 			if Options.show_progress and (line_number%Options.progress_count == 0):
 				print "__main__ [status]: processing line", line_number
@@ -323,9 +537,6 @@ if __name__ == "__main__":
 			if line == "\n":
 				new_actor = True
 				continue
-			elif line == "-----------------------------------------------------------------------------\n":
-				# this is the last valid line before there is a bunch of junk
-				break
 			if new_actor:
 				# reset all names to defaults
 				current_lastname = ""
@@ -333,7 +544,7 @@ if __name__ == "__main__":
 				current_nickname = ""
 				current_number = 0
 				# use regex to parse out name parts
-				name = line.split('\t')[0]
+				name = line
 				if Options.use_native:
 					m = parse.actor(name)
 					if not m:
@@ -352,134 +563,41 @@ if __name__ == "__main__":
 					else:
 						current_nickname = m.group(1)
 						current_lastname = m.group(3)
-						current_firstname = m.group(4).strip() # only required field
+						current_firstname = m.group(4).strip()
 						current_number = rntoi(m.group(6))
-				current_actor = select_or_insert(c, "actors", {"lname" : current_lastname, 
-					"fname" : current_firstname, "mname": current_nickname, "gender": current_gender,
-					"number": current_number}, skip_lookup = True)
+				# try male default
+				current_actor = select(c, "actors", {"lname" : current_lastname, 
+					"fname" : current_firstname, "mname": current_nickname, "gender": ActorsGender.MALE,
+					"number": current_number})
+				if not current_actor:
+					# try female
+					current_actor = select(c, "actors", {"lname" : current_lastname, 
+					"fname" : current_firstname, "mname": current_nickname, "gender": ActorsGender.FEMALE,
+					"number": current_number})
+				if current_actor:
+					is_valid = True
+					new_actor = False
+					continue
+				else:
+					is_valid = False
+					new_actor = False
+					continue
 			# process line
-			if new_actor:
-				new_actor = False
-				to_process = line.split('\t')[-1].strip() # use the rest of the line if we read in actor data
-			else:
-				to_process = line.strip()
-			good = False
-			n = None
-			if Options.use_native:
-				n = parse.acted_in(to_process)
+			to_process = line.strip()
+			if is_valid:
+				n = re.match(ParseRegexes.aka_name, to_process)
 				if n:
-					good = True
-					title = n[0]
-					try:
-						year = int(n[1]) # there always has to be a year
-					except ValueError:
-						print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
-						"year not valid integer value: \n\"" + to_process +"\"\n--> \t"),
-						print n,
-						quit()
-					number = rntoi(n[2]) # in roman numerals, needs to be converted
-					special_code = MoviesType.from_str(n[3])
-					special_information = n[4]
-					episode_title = n[5]
-					character_name = n[8]
-					try:
-						episode_series = int(n[6]) if n[6] else None
-						episode_number = int(n[7]) if n[7] else None
-						billing_position = int(n[9]) if n[9] else None
-					except ValueError:
-						print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
-						" not valid integer value: \n\"" + to_process +"\"\n--> \t"),
-						print n,
-			else:
-				n = re.match(ParseRegexes.acted_in, to_process)
-				if n:
-					good = True
-					title = n.group(1)
-					try:
-						if n.group(3) == "????":
-							year = 0
-						else:					
-							year = int(n.group(3)) # there always has to be a year
-					except ValueError:
-						print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
-						"year not valid integer value: " + to_process)
-						quit()
-					number = rntoi(n.group(4)) # in roman numerals, needs to be converted
-					special_code = MoviesType.from_str(n.group(6))
-					special_information = n.group(8)
-					episode_title = n.group(10)
-					episode_series = int(n.group(12)) if n.group(12) else None
-					episode_number = int(n.group(13)) if n.group(13) else None
-					character_name = n.group(15)
-					billing_position = int(n.group(17)) if n.group(17) else None
-			if good:
-				current_movie = select_or_insert(c, "movies", {"title": title, "year": year, 
-					"number": number, "type": special_code})
-				current_series = None
-				if episode_title:
-					current_series = select_or_insert(c, "series", {"idmovies": current_movie,
-						"name": episode_title, "season": episode_series, "number": episode_number})
-				# insert into the db the acted in information
-				select_or_insert(c, "acted_in", {"idmovies": current_movie, "idseries": current_series,
-					"idactors": current_actor, "character": character_name, "billing_position":
-					billing_position}, skip_lookup = True, supress_output = True)
+					name = n.group(1)
+					current_movie = select_or_insert(c, "aka_names", 
+						{"idactors": current_actor,	"name" : name},
+						skip_lookup = True, supress_output = True)
 			else:
 				print("__main__ [error]: while processing" + current_file + "[" + str(line_number) + "]: " +
-				"invalid info: " + to_process)
-				if Options.use_native:
-					print "parsed as: ", n
+				"invalid alias: " + to_process)
 		f.close()
 		conn.commit()
 		print "__main__ [status]: processing of", current_file, "complete."
-	#
-	# Movies List
-	#
-	current_file = mk("movies")
-	f = open(current_file)
-	# Skip over the information at the beginning and get to the actual data list
-	line_number = 1 
-	while(f.readline() != "===========\n"):
-		line_number += 1
-	f.readline() # skip over the blank line inbetween movie list and header
-	line_number += 1
-	for line in f:
-		if Options.show_progress and (line_number%Options.progress_count == 0):
-			print "__main__ [status]: processing line", line_number
-		if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
-			conn.commit()
-		line_number += 1
-		if line == "-----------------------------------------------------------------------------\n":
-			# this is the last valid line before there is a bunch of junk
-			break
-		m = re.match(ParseRegexes.movies, line)
-		if not m:
-			print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
-			"invalid movie : " + line)
-		else:
-			title = m.group(1)
-			try:
-				if m.group(3) == "????":
-					year = 0
-				else:					
-					year = int(m.group(3)) # there always has to be a year
-			except ValueError:
-				print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
-				"year not valid integer value: " + line)
-				quit()
-			number = rntoi(m.group(4)) # in roman numerals, needs to be converted
-			special_code = MoviesType.from_str(m.group(6))
-			episode_title = m.group(8)
-			episode_series = int(m.group(10)) if m.group(10) else None
-			episode_number = int(m.group(11)) if m.group(11) else None
-			current_movie = select_or_insert(c, "movies", {"title": title, "year": year, 
-				"number": number, "type": special_code})
-			if episode_title:
-				select_or_insert(c, "series", {"idmovies": current_movie,
-					"name": episode_title, "season": episode_series, "number": episode_number},
-					supress_output = True)
-	f.close()
-	conn.commit()
-	print "__main__ [status]: processing of", current_file, "complete."
+	
 	if Options.show_time:
 		print "__main__ [status]: total time:", time.clock() - start, "seconds."
 
