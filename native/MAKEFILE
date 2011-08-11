@@ -1,0 +1,22 @@
+python_include = C:\Python27\include\
+
+python_libs = C:\Python27\libs\python27.lib
+
+all : parse.pyd
+
+parse.pyd : parse.obj
+	link /OUT:parse.pyd /DLL parse.obj /LIBPATH $(python_libs)
+
+parse.obj : parse.c
+	cl /LD parse.c /c /I $(python_include)
+
+example : example.pyd
+
+example.pyd : example.obj
+	link /DLL example.obj /OUT example.pyd /LIBPATH $(python_libs)
+
+example.obj : example.c
+	cl /LD example.c /c /I $(python_include)
+
+clean : 
+	rm -rf *.obj *.lib *.exp

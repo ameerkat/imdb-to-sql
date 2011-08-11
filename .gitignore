@@ -1,0 +1,18 @@
+# Raw Data
+db_dump/
+
+# Binaries
+*.pyc
+*.dll
+*.def
+
+# Sqlite Db
+*.db
+
+# GVIM Temps
+*.swp
+*.swo
+*~
+
+# General Temps
+*.bak
