@@ -1,6 +1,9 @@
 # Raw Data
 db_dump/
 
+# Cached Files
+*.cache
+
 # Binaries
 *.pyc
 *.dll

@@ -10,13 +10,26 @@ from numerals import rntoi
 import time
 import cPickle as pickle
 
+class DatabaseTypes:
+	SQLITE	= 0
+	MYSQL 	= 1
+	POSTGRE	= 2
+
 # script configuration
+# database options
+class Database:
+	type 		= DatabaseTypes.SQLITE	# database type, one of DatabaseTypes
+	database 	= "imdb.db"				# database name
+	host 		= ""					# database host
+	user 		= ""					# database username
+	password 	= ""					# database password
+	clear_old_db = True					# clear old database information if exists
+
+# general options
 class Options:
-	database_name 		= "./imdb.db"	# sqlite database name
 	list_dir 			= "./db_dump"	# directory of the imdb list files
 	file_extension 		= ".list"		# file extension for the imdb list files
 	query_debug 		= False			# show log of all sql queries at construction time
-	clear_old_database 	= True			# clear old database file if exists
 	show_progress 		= True			# show progress (at all)
 	progress_count 		= 1000000		# show progress every _n_ lines
 	commit_count 		= 1000000		# commit every _n_ lines, -1 means only on completion
@@ -26,6 +39,8 @@ class Options:
 	use_dict			= True			# use a dictionary to generate and cache db id's in program
 	use_cache			= True			# cache the dictionaries to the disk, must be enabled if you 
 										# you want to convert only some files and you want to use dict
+	schema_dir			= "schemas"		# directory to load the db schemas from
+	cache_dir			= "cache"		# directory to load the dictionary caches from if applicable
 
 dicts = {}
 counts = {}
@@ -111,79 +126,30 @@ class MoviesType:
 			return MoviesType.M
 
 
+def mk_schema(name, use_dict = False):
+	if use_dict:
+		return "%s/%s.use_dict.schema" % (Options.schema_dir, name)
+	else:
+		return "%s/%s.schema" % (Options.schema_dir, name)
+	
+
+def mk_cache(name):
+	return "%s/%s.cache" % (Options.cache_dir, name)
+
+
 def create_tables(c):
 	""" Create Tables
 	As per schema (refer to imdb.db.png (image) or imdb.mwb (mysql workbench))
 	Things that are chars are instead integers which we can use an in program
 	defined enum (integers) since chars are unavailable in sqlite and text would
 	be unnecessary."""
-	# optimize this
 	autoincrement = " autoincrement"
-	if Options.use_dict:
-		autoincrement = ""
-	# `actors` Table
-	c.execute('''create table actors (
-		idactors integer primary key%s,
-		lname text,
-		fname text, 
-		mname text, 
-		number integer,
-		gender integer)''' % (autoincrement))
-	# `movies` Table
-	c.execute('''create table movies (
-		idmovies integer primary key%s,
-		title text,
-		year integer, 
-		type integer, 
-		number integer,
-		location text,
-		language text)''' % (autoincrement))
-	# `series` Table
-	c.execute('''create table series (
-		idseries integer primary key%s,
-		idmovies integer,
-		name text,
-		season integer,
-		number integer)''' % (autoincrement))
-	# `aka_names` Table
-	c.execute('''create table aka_names (
-		idaka_names integer primary key autoincrement,
-		idactors integer,
-		name text)''')
-	# `aka_titles` Table
-	c.execute('''create table aka_titles (
-		idaka_titles integer primary key autoincrement,
-		idmovies integer,
-		title text,
-		location text,
-		year integer)''')
-	# `acted_in` Table
-	c.execute('''create table acted_in (
-		idacted_in integer primary key autoincrement,
-		idmovies integer,
-		idseries integer,
-		idactors integer,
-		character text,
-		billing_position integer)''')
-	# `genres` Table
-	c.execute('''create table genres (
-		idgenres integer primary key autoincrement,
-		genre text)''')
-	# `movies_genres` Table
-	c.execute('''create table movies_genres (
-		idmovies_genres integer primary key autoincrement,
-		idmovies integer,
-		idgenres integer)''')
-	# `keywords` Table
-	c.execute('''create table keywords (
-		idkeywords integer primary key autoincrement,
-		keyword text)''')
-	# `movies_keywords` Table
-	c.execute('''create table movies_keywords (
-		idmovies_keywords integer primary key autoincrement,
-		idmovies integer,
-		idseries integer,
-		idkeywords integer)''')
+	global Options, Database
+	if Database.type == DatabaseTypes.SQLITE:
+		dbf = open(mk_schema("sqlite", Options.use_dict))
+		query_list = dbf.read().split("\n\n")
+		for query in query_list:
+			c.execute(query)
 
 
 def quote_escape(string):
@@ -304,8 +270,8 @@ def select(connection_cursor, name, param_dict):
 		
 def save_dict(name):
 	global dicts, counts
-	pfd_path = "cache/%s.dict.cache" % (name)
-	pfc_path = "cache/%s.count.cache" % (name)
+	pfd_path = mk_cache("%s.dict"%(name))
+	pfc_path = mk_cache("%s.count"%(name))
 	pfd = pickle.Pickler(open(pfd_path, "wb"))
 	pfd.fast = True
 	pfd.dump(dicts[name])	
@@ -319,8 +285,8 @@ def load_dict(name, force_load = False):
 	if len(dicts[name]) > 0 and not force_load:
 		return False
 	else:
-		pfd_path = "cache/%s.dict.cache" % (name)
-		pfc_path = "cache/%s.count.cache" % (name)
+		pfd_path = mk_cache("%s.dict"%(name))
+		pfc_path = mk_cache("%s.count"%(name))
 		if os.path.exists(pfd_path) and os.path.exists(pfc_path):
 			pfd = pickle.Unpickler(open(pfd_path, "rb"))
 			dicts[name] = pfd.load()
@@ -343,14 +309,21 @@ if __name__ == "__main__":
 		counts["actors"] = 1
 		counts["movies"] = 1
 		counts["series"] = 1
-	if Options.clear_old_database:
-		if os.path.exists(Options.database_name):
-			os.remove(Options.database_name)
+	
 	# Initialize Database
-	conn = sqlite3.connect(Options.database_name)
-	c = conn.cursor()
-	if Options.clear_old_database:
-		create_tables(c)
+	conn = None
+	c = None
+	if Database.type == DatabaseTypes.SQLITE:
+		# Since it's sqlite we just remove the old file, if this was an actual
+		# db we would drop from all the tables
+		if Database.clear_old_db:
+			if os.path.exists(Database.database):
+				os.remove(Database.database)
+		conn = sqlite3.connect(Database.database)
+		c = conn.cursor()
+		if Database.clear_old_db:
+			create_tables(c)
+
 	if Options.use_native:
 		print "__main__ [status]: using native c parsing code."
 	else:
@@ -494,7 +467,7 @@ if __name__ == "__main__":
 			f.close()
 			conn.commit()
 			print "__main__ [status]: processing of", current_file, "complete."
-		if Options.use_cache:
+		if Options.use_cache and Options.use_dict:
 			save_dict("actors")
 			save_dict("movies")
 			save_dict("series")
@@ -507,8 +480,9 @@ if __name__ == "__main__":
 	process_movies = False
 	if process_movies:
 		current_file = mk("movies")
-		load_dict("movies")
-		load_dict("series")
+		if Options.use_cache and Options.use_dict:
+			load_dict("movies")
+			load_dict("series")
 		f = open(current_file)
 		line_number = 1 
 		# Skip over the information at the beginning and get to the actual data list
@@ -553,8 +527,9 @@ if __name__ == "__main__":
 						supress_output = True)
 		f.close()
 		conn.commit()
-		save_dict("movies")
-		save_dict("series")
+		if Options.use_cache and Options.use_dict:
+			save_dict("movies")
+			save_dict("series")
 		print "__main__ [status]: processing of", current_file, "complete."
 
 	#
@@ -564,11 +539,13 @@ if __name__ == "__main__":
 	#
 	process_aka_names = True
 	if process_aka_names:
-		current_file = mk("aka-names")
-		if load_dict("actors"):
-			print "__main__ [status]: loaded actors dictionary cache file."
-		else:
-			print "__main__ [warning]: failed to load actors dictionary cache file."
+		current_file = mk("aka-names")		
+		if Options.use_cache and Options.use_dict:
+			print "__main__ [status]: loading actors cache file."
+			if load_dict("actors"):
+				print "__main__ [status]: loaded actors dictionary cache file."
+			else:
+				print "__main__ [warning]: failed to load actors dictionary cache file."
 		f = open(current_file)
 		# Skip over the information at the beginning and get to the actual data list
 		line_number = 1 
@@ -648,6 +625,8 @@ if __name__ == "__main__":
 		conn.commit()
 		print "__main__ [status]: processing of", current_file, "complete."
 	
+	c.close()
+	conn.close()
 	if Options.show_time:
 		print "__main__ [status]: total time:", time.clock() - start, "seconds."
 
