@@ -8,6 +8,7 @@ import sqlite3
 import os
 from numerals import rntoi
 import time
+import pickle
 
 # script configuration
 class Options:
@@ -300,6 +301,35 @@ def select(connection_cursor, name, param_dict):
 	else:
 		return None
 
+		
+def save_dict(name):
+	global dicts, counts
+	pfd = open("cache/%s.dict.cache" % (name), "w")
+	pickle.dump(dicts[name], pfd)
+	pfd.close()
+	pfc = open("cache/%s.count.cache" % (name), "w")
+	pickle.dump(counts[name], pfc)
+	pfc.close()
+	
+
+def load_dict(name, force_load = False):
+	global dicts, counts
+	if len(dicts["name"] > 0) or not force_load:
+		return False
+	else:
+		pfd_path = "cache/%s.dict.cache" % (name)
+		pfc_path = "cache/%s.count.cache" % (name)
+		if os.path.exists(pfd_path) and os.path.exists(pfc_path):
+			pfd = open(pfd_path)
+			pickle.dump(dicts[name], pfd)
+			pfd.close()
+			pfc = open(pfc_path)
+			pickle.dump(counts[name], pfc)
+			pfc.close()
+			return True
+		else:
+			return False
+
 
 if __name__ == "__main__":
 	if Options.show_time:
@@ -335,6 +365,8 @@ if __name__ == "__main__":
 		
 			#
 			# Actors/Actresses List File
+			# Dependencies : None
+			# required to be first to process
 			#
 			
 			current_file = mk(file)
@@ -462,13 +494,20 @@ if __name__ == "__main__":
 			f.close()
 			conn.commit()
 			print "__main__ [status]: processing of", current_file, "complete."
+		if Options.use_cache:
+			save_dict("actors")
+			save_dict("movies")
+			save_dict("series")
 		
 	#
 	# Movies List
+	# Dependencies : Movies, Series
 	#
 	process_movies = False
 	if process_movies:
 		current_file = mk("movies")
+		load_dict("movies")
+		load_dict("series")
 		f = open(current_file)
 		line_number = 1 
 		# Skip over the information at the beginning and get to the actual data list
@@ -513,14 +552,18 @@ if __name__ == "__main__":
 						supress_output = True)
 		f.close()
 		conn.commit()
+		save_dict("movies")
+		save_dict("series")
 		print "__main__ [status]: processing of", current_file, "complete."
 
 	#
 	# Aka-Names List File
-	#
-	process_aka_names = True
+	# Dependencies : Actors
+	# 
+	process_aka_names = False
 	if process_aka_names:
 		current_file = mk("aka-names")
+		load_dict("actors")
 		f = open(current_file)
 		# Skip over the information at the beginning and get to the actual data list
 		line_number = 1 
@@ -596,6 +639,7 @@ if __name__ == "__main__":
 				"invalid alias: " + to_process)
 		f.close()
 		conn.commit()
+		save_dict("actors")
 		print "__main__ [status]: processing of", current_file, "complete."
 	
 	if Options.show_time:
