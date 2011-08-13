@@ -8,7 +8,7 @@ import sqlite3
 import os
 from numerals import rntoi
 import time
-import pickle
+import cPickle as pickle
 
 # script configuration
 class Options:
@@ -304,27 +304,29 @@ def select(connection_cursor, name, param_dict):
 		
 def save_dict(name):
 	global dicts, counts
-	pfd = open("cache/%s.dict.cache" % (name), "w")
-	pickle.dump(dicts[name], pfd)
-	pfd.close()
-	pfc = open("cache/%s.count.cache" % (name), "w")
-	pickle.dump(counts[name], pfc)
-	pfc.close()
+	pfd_path = "cache/%s.dict.cache" % (name)
+	pfc_path = "cache/%s.count.cache" % (name)
+	pfd = pickle.Pickler(open(pfd_path, "wb"))
+	pfd.fast = True
+	pfd.dump(dicts[name])	
+	pfc = pickle.Pickler(open(pfc_path, "wb"))
+	pfc.fast = True
+	pfc.dump(counts[name])
 	
 
 def load_dict(name, force_load = False):
 	global dicts, counts
-	if len(dicts["name"] > 0) or not force_load:
+	if len(dicts[name] > 0) or not force_load:
 		return False
 	else:
 		pfd_path = "cache/%s.dict.cache" % (name)
 		pfc_path = "cache/%s.count.cache" % (name)
 		if os.path.exists(pfd_path) and os.path.exists(pfc_path):
 			pfd = open(pfd_path)
-			pickle.dump(dicts[name], pfd)
+			dicts[name] = pickle.load(pfd)
 			pfd.close()
 			pfc = open(pfc_path)
-			pickle.dump(counts[name], pfc)
+			counts[name] = pickle.load(pfc)
 			pfc.close()
 			return True
 		else:
