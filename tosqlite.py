@@ -316,18 +316,16 @@ def save_dict(name):
 
 def load_dict(name, force_load = False):
 	global dicts, counts
-	if len(dicts[name] > 0) or not force_load:
+	if len(dicts[name]) > 0 and not force_load:
 		return False
 	else:
 		pfd_path = "cache/%s.dict.cache" % (name)
 		pfc_path = "cache/%s.count.cache" % (name)
 		if os.path.exists(pfd_path) and os.path.exists(pfc_path):
-			pfd = open(pfd_path)
-			dicts[name] = pickle.load(pfd)
-			pfd.close()
-			pfc = open(pfc_path)
-			counts[name] = pickle.load(pfc)
-			pfc.close()
+			pfd = pickle.Unpickler(open(pfd_path, "rb"))
+			dicts[name] = pfd.load()
+			pfc = pickle.Unpickler(open(pfc_path, "rb"))
+			counts[name] = pfc.load()
 			return True
 		else:
 			return False
@@ -359,7 +357,7 @@ if __name__ == "__main__":
 		print "__main__ [status]: using python regex parsing code."
 	# Read in data from raw list files
 	
-	process_actors = True
+	process_actors = False
 	if process_actors:
 		files_to_process = ["actresses", "actors"]
 		#files_to_process = ["actors.test"]
@@ -368,7 +366,7 @@ if __name__ == "__main__":
 			#
 			# Actors/Actresses List File
 			# Dependencies : None
-			# required to be first to process
+			# Updates : Actors, Movies, Series
 			#
 			
 			current_file = mk(file)
@@ -504,6 +502,7 @@ if __name__ == "__main__":
 	#
 	# Movies List
 	# Dependencies : Movies, Series
+	# Updates : Movies, Series
 	#
 	process_movies = False
 	if process_movies:
@@ -561,11 +560,15 @@ if __name__ == "__main__":
 	#
 	# Aka-Names List File
 	# Dependencies : Actors
-	# 
-	process_aka_names = False
+	# Updates : None 
+	#
+	process_aka_names = True
 	if process_aka_names:
 		current_file = mk("aka-names")
-		load_dict("actors")
+		if load_dict("actors"):
+			print "__main__ [status]: loaded actors dictionary cache file."
+		else:
+			print "__main__ [warning]: failed to load actors dictionary cache file."
 		f = open(current_file)
 		# Skip over the information at the beginning and get to the actual data list
 		line_number = 1 
@@ -611,6 +614,7 @@ if __name__ == "__main__":
 						current_firstname = m.group(4).strip()
 						current_number = rntoi(m.group(6))
 				# try male default
+				current_actor = None
 				current_actor = select(c, "actors", {"lname" : current_lastname, 
 					"fname" : current_firstname, "mname": current_nickname, "gender": ActorsGender.MALE,
 					"number": current_number})
@@ -637,11 +641,11 @@ if __name__ == "__main__":
 						{"idactors": current_actor,	"name" : name},
 						skip_lookup = True, supress_output = True)
 			else:
-				print("__main__ [error]: while processing" + current_file + "[" + str(line_number) + "]: " +
-				"invalid alias: " + to_process)
+				#print("__main__ [error]: while processing" + current_file + "[" + str(line_number) + "]: " +
+				#"invalid alias: " + to_process)
+				pass # supress alias names errors
 		f.close()
 		conn.commit()
-		save_dict("actors")
 		print "__main__ [status]: processing of", current_file, "complete."
 	
 	if Options.show_time:
