@@ -31,8 +31,8 @@ class Options:
 	file_extension 		= ".list"		# file extension for the imdb list files
 	query_debug 		= False			# show log of all sql queries at construction time
 	show_progress 		= True			# show progress (at all)
-	progress_count 		= 1000000		# show progress every _n_ lines
-	commit_count 		= 1000000		# commit every _n_ lines, -1 means only on completion
+	progress_count 		= 100000		# show progress every _n_ lines
+	commit_count 		= 100000		# commit every _n_ lines, -1 means only on completion
 										# database will commit on completion of each file regardless
 	show_time 			= True			# show the total time taken to complete
 	use_native			= False			# use native parsing operations instead of regex
@@ -60,6 +60,9 @@ class ParseRegexes:
 	raw_movies = """"?([^"]*?)"?\s\(((\?{4}|\d+)/?(\w+)?).*?\)(\s*\((T?VG?)\))?
 		(\s*\{([^\(]*?)(\s*\(\#(\d+)\.(\d+)\))?\})?.*"""
 	raw_aka_name = """\s*\(aka ([^\)]+)\)"""
+	raw_aka_title_title = """\"?([^\"]*)\"?\s*\((\d{4}|\?{4})(/([\w]*))?\)\s*(\((T?VG?)\))?"""
+	raw_title_genre = """\"?([^\"]*)\"?\s*\((\d{4}|\?{4})(/([\w]*))?\)\s*(\((T?VG?)\))?\s*(\w+)"""
+	raw_aka_title_alias = """\(aka\s\"?([^\"]*)\"?\s\((\d{4}|\?{4})\)\s*\)\s*(\(([^\)]*)\))?\s*(\(([^\)]*)\))?"""
 	# compiled regex patterns for use
 	name = re.compile("""
 		('.+')?\s*				# nickname (optional, group 1)
@@ -98,6 +101,26 @@ class ParseRegexes:
 		""", re.VERBOSE)
 	aka_name = re.compile("""
 		\s*\(aka ([^\)]+)\)		# alias name (required, group 1)
+		""", re.VERBOSE)
+	aka_title_alias = re.compile("""
+		\(aka\s\"?([^\"]*)\"?\s	# title (required, group 1)
+		\((\d{4}|\?{4})\)\s*\)\s*
+								# year (required, group 2)
+		(\(([^\)]*)\))?\s*		# location (required, group 4)
+		(\(([^\)]*)\))?			# reason (optional, group 6)
+		""", re.VERBOSE)
+	aka_title_title = re.compile("""
+		\"?([^\"]*)\"?\s*		# title (required, group 1)
+		\((\d{4}|\?{4})			# year (required, group 2)
+		(/([\w]*))?\)\s*		# number (optional, group 4)
+		(\((T?VG?)\))?			# code (optional, group 6)
+		""", re.VERBOSE)
+	title_genre = re.compile("""
+		\"?([^\"]*)\"?\s*		# title (required, group 1)
+		\((\d{4}|\?{4})			# year (required, group 2)
+		(/([\w]*))?\)\s*		# number (optional, group 4)
+		(\((T?VG?)\))?\s*		# code (optional, group 6)
+		(\w+)					# genre (required, group 7)
 		""", re.VERBOSE)
 
 
@@ -306,9 +329,11 @@ if __name__ == "__main__":
 		dicts["actors"] = {}
 		dicts["movies"] = {}
 		dicts["series"] = {}
+		dicts["genres"] = {}
 		counts["actors"] = 1
 		counts["movies"] = 1
 		counts["series"] = 1
+		counts["genres"] = 1
 	
 	# Initialize Database
 	conn = None
@@ -537,7 +562,7 @@ if __name__ == "__main__":
 	# Dependencies : Actors
 	# Updates : None 
 	#
-	process_aka_names = True
+	process_aka_names = False
 	if process_aka_names:
 		current_file = mk("aka-names")		
 		if Options.use_cache and Options.use_dict:
@@ -569,7 +594,7 @@ if __name__ == "__main__":
 				current_nickname = ""
 				current_number = 0
 				# use regex to parse out name parts
-				name = line
+				name = line.strip()
 				if Options.use_native:
 					m = parse.actor(name)
 					if not m:
@@ -614,17 +639,172 @@ if __name__ == "__main__":
 				n = re.match(ParseRegexes.aka_name, to_process)
 				if n:
 					name = n.group(1)
-					current_movie = select_or_insert(c, "aka_names", 
-						{"idactors": current_actor,	"name" : name},
-						skip_lookup = True, supress_output = True)
-			else:
-				#print("__main__ [error]: while processing" + current_file + "[" + str(line_number) + "]: " +
-				#"invalid alias: " + to_process)
-				pass # supress alias names errors
+					select_or_insert(c, "aka_names", {"idactors": current_actor,
+					"name" : name}, skip_lookup = True, supress_output = True)
+				else:
+					print("__main__ [error]: while processing %s [%d]: invalid alias: " % (current_file, line_number, to_process))
+					#supress alias names errors
 		f.close()
 		conn.commit()
 		print "__main__ [status]: processing of", current_file, "complete."
+
 	
+	#
+	# Aka-Titles List File
+	# Dependencies : Movies
+	# Updates : None
+	#
+	process_aka_titles = False
+	if process_aka_titles:
+		current_file = mk("aka-titles")
+		if Options.use_cache and Options.use_dict:
+			print "__main__ [status]: loading movies cache file."
+			if load_dict("movies"):
+				print "__main__ [status]: loaded movies dictionary cache file."
+			else:
+				print "__main__ [warning]: failed to load movies dictionary cache file."
+		f = open(current_file)
+		# Skip over the information at the beginning and get to the actual data list
+		line_number = 1 
+		line = f.readline()
+		while(line and line != "===============\n"):
+			line = f.readline()
+			line_number += 1
+		new_movie = True
+		is_valid = True
+		for line in f:
+			if Options.show_progress and (line_number%Options.progress_count == 0):
+				print "__main__ [status]: processing line", line_number
+			if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
+				conn.commit()
+			line_number += 1
+			if line == "\n":
+				new_movie = True
+				continue
+			if new_movie:
+				# reset all info to defaults
+				current_title = ""
+				current_year = -1
+				current_number = None
+				current_special_code = MoviesType.M
+				# use regex to parse out movie title parts
+				title = line.strip()
+				m = re.match(ParseRegexes.aka_title_title, title)
+				if m:
+					current_title = m.group(1)
+					current_year = -1
+					if m.group(2) and m.group(2) == "????":
+						current_year = 0
+					elif m.group(2):
+						current_year = int(m.group(2))
+					number = rntoi(m.group(4)) if m.group(4) else None
+					special_code = MoviesType.from_str(m.group(6))
+				else:
+					print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
+					"invalid title : " + title)
+				current_movie = select(c, "movies", {"title" : current_title, 
+					"year" : current_year, "type": current_special_code, "number": current_number})
+				if current_movie:
+					is_valid = True
+					new_movie = False
+					continue
+				else:
+					is_valid = False
+					new_movie = False
+					continue
+			# process line
+			if is_valid:
+				to_process = line.strip()
+				n = re.match(ParseRegexes.aka_title_alias, to_process)
+				if n:
+					title = n.group(1)
+					year = -1
+					if n.group(2) and n.group(2) == "????":
+						year = 0
+					elif n.group(2):
+						year = int(n.group(2))
+					location = n.group(4)
+					# skip over reason field
+					select_or_insert(c, "aka_titles", {"idmovies": current_movie,
+					"title": title, "year": year, "location": location},
+					skip_lookup = True, supress_output = True)
+				else:
+					print("__main__ [error]: while processing %s [%d]: invalid alias: %s" % (current_file, line_number, to_process))
+		f.close()
+		conn.commit()
+		print "__main__ [status]: processing of", current_file, "complete."
+		
+
+	#
+	# Movies Genres
+	# Dependencies : Movies
+	# Updates : None
+	#
+	process_genres = True
+	if process_genres:
+		current_file = mk("genres")
+		if Options.use_cache and Options.use_dict:
+			print "__main__ [status]: loading movies cache file."
+			if load_dict("movies"):
+				print "__main__ [status]: loaded movies dictionary cache file."
+			else:
+				print "__main__ [warning]: failed to load movies dictionary cache file."
+		f = open(current_file)
+		# Skip over the information at the beginning and get to the actual data list
+		line_number = 1 
+		line = f.readline()
+		while(line and line != "8: THE GENRES LIST\n"):
+			line = f.readline()
+			line_number += 1
+		line = f.readline() # read over the seperator line
+		line_number += 1
+		for line in f:
+			if Options.show_progress and (line_number%Options.progress_count == 0):
+				print "__main__ [status]: processing line", line_number
+			if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
+				conn.commit()
+			line_number += 1
+			if line == "\n":
+				continue
+			else:
+				# reset all info to defaults
+				current_title = ""
+				current_year = -1
+				current_number = None
+				current_special_code = MoviesType.M
+				current_genre = None
+				# use regex to parse out movie title parts
+				title = line.strip()
+				m = re.match(ParseRegexes.title_genre, title)
+				if m:
+					current_title = m.group(1)
+					current_year = -1
+					if m.group(2) and m.group(2) == "????":
+						current_year = 0
+					elif m.group(2):
+						current_year = int(m.group(2))
+					number = rntoi(m.group(4)) if m.group(4) else None
+					special_code = MoviesType.from_str(m.group(6))
+					genre = m.group(7)
+					current_movie = select(c, "movies", {"title" : current_title, 
+					"year" : current_year, "type": current_special_code, "number": current_number})
+					current_genre = select_or_insert(c, "genres", {"genre": genre})
+					if current_movie and current_genre:
+						select_or_insert(c, "movies_genres", {"idmovies": current_movie, "idgenres": current_genre},
+						skip_lookup = True, supress_output = True)
+					else:
+						#print("__main__ [error]: while processing %s [%d]: movie/genre lookup failed: %s" % (current_file, line_number, title))
+						pass
+				else:
+					#print("__main__ [error]: while processing %s [%d]: invalid title/genre: %s" % (current_file, line_number, title))
+					pass
+		f.close()
+		conn.commit()
+		if Options.use_cache and Options.use_dict:
+			save_dict("genres")
+		print "__main__ [status]: processing of", current_file, "complete."
+
+		
 	c.close()
 	conn.close()
 	if Options.show_time:
