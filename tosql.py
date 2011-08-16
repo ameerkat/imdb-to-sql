@@ -23,7 +23,7 @@ class Database:
 	host 		= ""					# database host
 	user 		= ""					# database username
 	password 	= ""					# database password
-	clear_old_db = True					# clear old database information if exists
+	clear_old_db = False				# clear old database information if exists
 
 # general options
 class Options:
@@ -41,6 +41,7 @@ class Options:
 										# you want to convert only some files and you want to use dict
 	schema_dir			= "schemas"		# directory to load the db schemas from
 	cache_dir			= "cache"		# directory to load the dictionary caches from if applicable
+	proc_all			= False			# overrides the individual process directives
 
 dicts = {}
 counts = {}
@@ -272,7 +273,7 @@ def select_or_insert(connection_cursor, name, param_dict, skip_lookup = False, s
 			return None
 
 
-def select(connection_cursor, name, param_dict):
+def select(connection_cursor, name, param_dict, dict_only = False):
 	"""selects a row from the database, returning the appropriate id field
 	note this makes the assumption the id name is id`table_name` which is the 
 	case for the schema defined above"""
@@ -282,6 +283,8 @@ def select(connection_cursor, name, param_dict):
 		if name in dicts:
 			if unpacked in dicts[name]:
 				return dicts[name][unpacked]
+			elif dict_only:
+				return None
 	select_query = build_select_query(name, param_dict)
 	connection_cursor.execute(select_query)
 	row = connection_cursor.fetchone()
@@ -337,6 +340,15 @@ if __name__ == "__main__":
 		counts["genres"] = 1
 		counts["keywords"] = 1
 	
+	process_flags = { 
+		"actors": False,
+		"movies": False,
+		"aka_names": False,
+		"aka_titles": False,
+		"genres": False,
+		"keywords": False
+	}
+	
 	# Initialize Database
 	conn = None
 	c = None
@@ -357,24 +369,23 @@ if __name__ == "__main__":
 		print "__main__ [status]: using python regex parsing code."
 	# Read in data from raw list files
 	
-	process_actors = False
-	if process_actors:
+	#
+	# Actors/Actresses List File
+	# Dependencies : None
+	# Updates : Actors, Movies, Series
+	#
+	if process_flags["actors"] or Options.proc_all:
 		files_to_process = ["actresses", "actors"]
 		#files_to_process = ["actors.test"]
 		for file in files_to_process:
-		
-			#
-			# Actors/Actresses List File
-			# Dependencies : None
-			# Updates : Actors, Movies, Series
-			#
-			
 			current_file = mk(file)
 			current_gender = ActorsGender.MALE if file=="actors" else ActorsGender.FEMALE
 			f = open(current_file)
 			# Skip over the information at the beginning and get to the actual data list
 			line_number = 1 
-			while(f.readline() != "----			------\n"):
+			line = f.readline()
+			while(line and line != "----			------\n"):
+				line = f.readline()
 				line_number += 1
 			new_actor = True
 			for line in f:
@@ -504,8 +515,7 @@ if __name__ == "__main__":
 	# Dependencies : Movies, Series
 	# Updates : Movies, Series
 	#
-	process_movies = False
-	if process_movies:
+	if process_flags["movies"] or Options.proc_all:
 		current_file = mk("movies")
 		if Options.use_cache and Options.use_dict:
 			load_dict("movies")
@@ -513,7 +523,9 @@ if __name__ == "__main__":
 		f = open(current_file)
 		line_number = 1 
 		# Skip over the information at the beginning and get to the actual data list
-		while(f.readline() != "===========\n"):
+		line = f.readline()
+		while(line and line != "===========\n"):
+			line = f.readline()
 			line_number += 1
 		f.readline() # skip over the blank line inbetween movie list and header
 		line_number += 1
@@ -564,8 +576,7 @@ if __name__ == "__main__":
 	# Dependencies : Actors
 	# Updates : None 
 	#
-	process_aka_names = False
-	if process_aka_names:
+	if process_flags["aka_names"] or Options.proc_all:
 		current_file = mk("aka-names")		
 		if Options.use_cache and Options.use_dict:
 			print "__main__ [status]: loading actors cache file."
@@ -576,8 +587,10 @@ if __name__ == "__main__":
 		f = open(current_file)
 		# Skip over the information at the beginning and get to the actual data list
 		line_number = 1 
-		while(f.readline() != "==============\n"):
+		line = f.readline()
+		while(line and line != "==============\n"):
 			line_number += 1
+			line = f.readline()
 		new_actor = True
 		is_valid = True
 		for line in f:
@@ -619,21 +632,21 @@ if __name__ == "__main__":
 						current_number = rntoi(m.group(6))
 				# try male default
 				current_actor = None
+				dict_only_search = True if Options.use_dict else False
 				current_actor = select(c, "actors", {"lname" : current_lastname, 
 					"fname" : current_firstname, "mname": current_nickname, "gender": ActorsGender.MALE,
-					"number": current_number})
+					"number": current_number}, dict_only_search)
 				if not current_actor:
 					# try female
 					current_actor = select(c, "actors", {"lname" : current_lastname, 
 					"fname" : current_firstname, "mname": current_nickname, "gender": ActorsGender.FEMALE,
-					"number": current_number})
+					"number": current_number}, dict_only_search)
+				new_actor = False
 				if current_actor:
 					is_valid = True
-					new_actor = False
 					continue
 				else:
 					is_valid = False
-					new_actor = False
 					continue
 			# process line
 			to_process = line.strip()
@@ -656,8 +669,7 @@ if __name__ == "__main__":
 	# Dependencies : Movies
 	# Updates : None
 	#
-	process_aka_titles = False
-	if process_aka_titles:
+	if process_flags["aka_titles"] or Options.proc_all:
 		current_file = mk("aka-titles")
 		if Options.use_cache and Options.use_dict:
 			print "__main__ [status]: loading movies cache file."
@@ -704,8 +716,9 @@ if __name__ == "__main__":
 				else:
 					print("__main__ [error]: while processing " + current_file + "[" + str(line_number) + "]: " +
 					"invalid title : " + title)
+				dict_only_search = True if Options.use_dict else False
 				current_movie = select(c, "movies", {"title" : current_title, 
-					"year" : current_year, "type": current_special_code, "number": current_number})
+					"year" : current_year, "type": current_special_code, "number": current_number}, dict_only_search)
 				if current_movie:
 					is_valid = True
 					new_movie = False
@@ -742,8 +755,7 @@ if __name__ == "__main__":
 	# Dependencies : Movies
 	# Updates : Genres
 	#
-	process_genres = False
-	if process_genres:
+	if process_flags["genres"] or Options.proc_all:
 		current_file = mk("genres")
 		if Options.use_cache and Options.use_dict:
 			print "__main__ [status]: loading movies cache file."
@@ -788,8 +800,9 @@ if __name__ == "__main__":
 					number = rntoi(m.group(4)) if m.group(4) else None
 					special_code = MoviesType.from_str(m.group(6))
 					genre = m.group(7)
+					dict_only_search = True if Options.use_dict else False
 					current_movie = select(c, "movies", {"title" : current_title, 
-					"year" : current_year, "type": current_special_code, "number": current_number})
+					"year" : current_year, "type": current_special_code, "number": current_number}, dict_only_search)
 					current_genre = select_or_insert(c, "genres", {"genre": genre})
 					if current_movie and current_genre:
 						select_or_insert(c, "movies_genres", {"idmovies": current_movie, "idgenres": current_genre},
@@ -812,8 +825,7 @@ if __name__ == "__main__":
 	# Dependencies : Movies
 	# Updates : None
 	#
-	process_keywords = True
-	if process_keywords:
+	if process_flags["keywords"] or Options.proc_all:
 		current_file = mk("keywords")
 		if Options.use_cache and Options.use_dict:
 			print "__main__ [status]: loading movies cache file."
@@ -858,11 +870,12 @@ if __name__ == "__main__":
 					number = rntoi(m.group(4)) if m.group(4) else None
 					special_code = MoviesType.from_str(m.group(6))
 					keyword = m.group(7)
+					dict_only_search = True if Options.use_dict else False
 					current_movie = select(c, "movies", {"title" : current_title, 
-					"year" : current_year, "type": current_special_code, "number": current_number})
+					"year" : current_year, "type": current_special_code, "number": current_number}, dict_only_search)
 					current_keyword = select_or_insert(c, "keywords", {"keyword": keyword})
 					if current_movie and current_keyword:
-						select_or_insert(c, "movies_keywords", {"idmovies": current_movie, "idkeywords": current_genre},
+						select_or_insert(c, "movies_keywords", {"idmovies": current_movie, "idkeywords": current_keyword},
 						skip_lookup = True, supress_output = True)
 					else:
 						#print("__main__ [error]: while processing %s [%d]: movie/genre lookup failed: %s" % (current_file, line_number, title))
