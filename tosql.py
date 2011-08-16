@@ -330,10 +330,12 @@ if __name__ == "__main__":
 		dicts["movies"] = {}
 		dicts["series"] = {}
 		dicts["genres"] = {}
+		dicts["keywords"] = {}
 		counts["actors"] = 1
 		counts["movies"] = 1
 		counts["series"] = 1
 		counts["genres"] = 1
+		counts["keywords"] = 1
 	
 	# Initialize Database
 	conn = None
@@ -738,9 +740,9 @@ if __name__ == "__main__":
 	#
 	# Movies Genres
 	# Dependencies : Movies
-	# Updates : None
+	# Updates : Genres
 	#
-	process_genres = True
+	process_genres = False
 	if process_genres:
 		current_file = mk("genres")
 		if Options.use_cache and Options.use_dict:
@@ -805,6 +807,76 @@ if __name__ == "__main__":
 		print "__main__ [status]: processing of", current_file, "complete."
 
 		
+	#
+	# Movies Keywords
+	# Dependencies : Movies
+	# Updates : None
+	#
+	process_keywords = True
+	if process_keywords:
+		current_file = mk("keywords")
+		if Options.use_cache and Options.use_dict:
+			print "__main__ [status]: loading movies cache file."
+			if load_dict("movies"):
+				print "__main__ [status]: loaded movies dictionary cache file."
+			else:
+				print "__main__ [warning]: failed to load movies dictionary cache file."
+		f = open(current_file)
+		# Skip over the information at the beginning and get to the actual data list
+		line_number = 1 
+		line = f.readline()
+		while(line and line != "8: THE KEYWORDS LIST\n"):
+			line = f.readline()
+			line_number += 1
+		line = f.readline() # read over the seperator line
+		line_number += 1
+		for line in f:
+			if Options.show_progress and (line_number%Options.progress_count == 0):
+				print "__main__ [status]: processing line", line_number
+			if Options.commit_count != -1 and (line_number%Options.commit_count == 0):
+				conn.commit()
+			line_number += 1
+			if line == "\n":
+				continue
+			else:
+				# reset all info to defaults
+				current_title = ""
+				current_year = -1
+				current_number = None
+				current_special_code = MoviesType.M
+				current_keyword = None
+				# use regex to parse out movie title parts
+				title = line.strip()
+				m = re.match(ParseRegexes.title_genre, title)
+				if m:
+					current_title = m.group(1)
+					current_year = -1
+					if m.group(2) and m.group(2) == "????":
+						current_year = 0
+					elif m.group(2):
+						current_year = int(m.group(2))
+					number = rntoi(m.group(4)) if m.group(4) else None
+					special_code = MoviesType.from_str(m.group(6))
+					keyword = m.group(7)
+					current_movie = select(c, "movies", {"title" : current_title, 
+					"year" : current_year, "type": current_special_code, "number": current_number})
+					current_keyword = select_or_insert(c, "keywords", {"keyword": keyword})
+					if current_movie and current_keyword:
+						select_or_insert(c, "movies_keywords", {"idmovies": current_movie, "idkeywords": current_genre},
+						skip_lookup = True, supress_output = True)
+					else:
+						#print("__main__ [error]: while processing %s [%d]: movie/genre lookup failed: %s" % (current_file, line_number, title))
+						pass
+				else:
+					#print("__main__ [error]: while processing %s [%d]: invalid title/genre: %s" % (current_file, line_number, title))
+					pass
+		f.close()
+		conn.commit()
+		if Options.use_cache and Options.use_dict:
+			save_dict("keywords")
+		print "__main__ [status]: processing of", current_file, "complete."
+
+
 	c.close()
 	conn.close()
 	if Options.show_time:
