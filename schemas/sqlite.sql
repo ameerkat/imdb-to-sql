@@ -1,5 +1,5 @@
 create table actors (
-	idactors integer primary key,
+	idactors integer primary key autoincrement,
 	lname text,
 	fname text, 
 	mname text, 
@@ -7,7 +7,7 @@ create table actors (
 	gender integer)
 
 create table movies (
-	idmovies integer primary key,
+	idmovies integer primary key autoincrement,
 	title text,
 	year integer, 
 	type integer, 
@@ -16,7 +16,7 @@ create table movies (
 	language text)
 
 create table series (
-	idseries integer primary key,
+	idseries integer primary key autoincrement,
 	idmovies integer,
 	name text,
 	season integer,
@@ -49,6 +49,7 @@ create table genres (
 create table movies_genres (
 	idmovies_genres integer primary key autoincrement,
 	idmovies integer,
+	idseries integer,
 	idgenres integer)
 
 create table keywords (

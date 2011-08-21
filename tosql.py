@@ -152,9 +152,9 @@ class MoviesType:
 
 def mk_schema(name, use_dict = False):
 	if use_dict:
-		return "%s/%s.use_dict.schema" % (Options.schema_dir, name)
+		return "%s/%s.use_dict.sql" % (Options.schema_dir, name)
 	else:
-		return "%s/%s.schema" % (Options.schema_dir, name)
+		return "%s/%s.sql" % (Options.schema_dir, name)
 	
 
 def mk_cache(name):
@@ -171,9 +171,10 @@ def create_tables(c):
 	global Options, Database
 	if Database.type == DatabaseTypes.SQLITE:
 		dbf = open(mk_schema("sqlite", Options.use_dict))
-		query_list = dbf.read().split("\n\n")
-		for query in query_list:
-			c.execute(query)
+	if Database.type == DatabaseTypes.MYSQL:
+		dbf = open(mk_schema("mysql", Options.use_dict))
+	query_list = dbf.read()
+	c.executescript(query_list)
 
 
 def quote_escape(string):
