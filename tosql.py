@@ -4,7 +4,6 @@
 
 import re
 from types import StringType
-import sqlite3
 import os
 from numerals import rntoi
 import time
@@ -354,6 +353,7 @@ if __name__ == "__main__":
 	conn = None
 	c = None
 	if Database.type == DatabaseTypes.SQLITE:
+		sqlite3 = __import__("sqlite3")
 		# Since it's sqlite we just remove the old file, if this was an actual
 		# db we would drop from all the tables
 		if Database.clear_old_db:
@@ -363,7 +363,11 @@ if __name__ == "__main__":
 		c = conn.cursor()
 		if Database.clear_old_db:
 			create_tables(c)
-
+	elif Database.type == DatabaseTypes.MYSQL:
+		pass
+	elif Database.type = DatabaseTypes.POSTGRE:
+		pass
+	
 	if Options.use_native:
 		print "__main__ [status]: using native c parsing code."
 	else:
