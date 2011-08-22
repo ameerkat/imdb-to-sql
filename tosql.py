@@ -365,7 +365,7 @@ if __name__ == "__main__":
 			create_tables(c)
 	elif Database.type == DatabaseTypes.MYSQL:
 		pass
-	elif Database.type = DatabaseTypes.POSTGRE:
+	elif Database.type == DatabaseTypes.POSTGRE:
 		pass
 	
 	if Options.use_native:
