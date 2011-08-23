@@ -40,7 +40,7 @@ class Options:
 										# you want to convert only some files and you want to use dict
 	schema_dir			= "schemas"		# directory to load the db schemas from
 	cache_dir			= "cache"		# directory to load the dictionary caches from if applicable
-	proc_all			= False			# overrides the individual process directives
+	proc_all			= True			# overrides the individual process directives
 
 dicts = {}
 counts = {}
