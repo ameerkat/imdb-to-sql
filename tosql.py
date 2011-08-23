@@ -17,12 +17,12 @@ class DatabaseTypes:
 # script configuration
 # database options
 class Database:
-	type 		= DatabaseTypes.SQLITE	# database type, one of DatabaseTypes
-	database 	= "imdb.db"				# database name
-	host 		= ""					# database host
-	user 		= ""					# database username
-	password 	= ""					# database password
-	clear_old_db = False				# clear old database information if exists
+	type 		= DatabaseTypes.POSTGRES# database type, one of DatabaseTypes
+	database 	= "imdb_data"			# database name
+	host 		= "127.0.0.1"			# database host
+	user 		= "postgres"			# database username
+	password 	= "password"			# database password
+	clear_old_db = True					# clear old database information if exists
 
 # general options
 class Options:
@@ -370,11 +370,14 @@ if __name__ == "__main__":
 			create_tables(c)
 	elif Database.type == DatabaseTypes.MYSQL:
 		create_tables(c, drop_all = Database.clear_old_db)	
-	elif Database.type == DatabaseTypes.POSTGRE:
+	elif Database.type == DatabaseTypes.POSTGRES:
 		psycopg2 = __import__("psycopg2")
-		conn = psycopg2.connect(database = Database.database, user = Database.user, password = Database.password)
+		conn = psycopg2.connect(host = Database.host, database = Database.database, user = Database.user, password = Database.password)
 		c = conn.cursor()
 		create_tables(c, drop_all = Database.clear_old_db)
+	else:
+		print "__main__ [error]: unknown database type %d." % (Database.type)
+		quit()
 	
 	if Options.use_native:
 		print "__main__ [status]: using native c parsing code."
