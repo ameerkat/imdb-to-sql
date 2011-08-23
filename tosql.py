@@ -10,9 +10,9 @@ import time
 import cPickle as pickle
 
 class DatabaseTypes:
-	SQLITE	= 0
-	MYSQL 	= 1
-	POSTGRE	= 2
+	SQLITE		= 0
+	MYSQL 		= 1
+	POSTGRES	= 2
 
 # script configuration
 # database options
@@ -160,18 +160,23 @@ def mk_cache(name):
 	return "%s/%s.cache" % (Options.cache_dir, name)
 
 
-def create_tables(c):
+def create_tables(c, drop_all = False):
 	""" Create Tables
 	As per schema (refer to imdb.db.png (image) or imdb.mwb (mysql workbench))
 	Things that are chars are instead integers which we can use an in program
 	defined enum (integers) since chars are unavailable in sqlite and text would
 	be unnecessary."""
+	print "create_tables [status]: create tables triggered."
 	autoincrement = " autoincrement"
 	global Options, Database
+	if drop_all:
+		c.execute("DROP TABLE *")
 	if Database.type == DatabaseTypes.SQLITE:
 		dbf = open(mk_schema("sqlite", Options.use_dict))
-	if Database.type == DatabaseTypes.MYSQL:
+	elif Database.type == DatabaseTypes.MYSQL:
 		dbf = open(mk_schema("mysql", Options.use_dict))
+	elif Database.type == DatabaseTypes.POSTGRES:
+		dbf = open(mk_schema("postgres", Options.use_dict))
 	query_list = dbf.read()
 	c.executescript(query_list)
 
@@ -354,19 +359,22 @@ if __name__ == "__main__":
 	c = None
 	if Database.type == DatabaseTypes.SQLITE:
 		sqlite3 = __import__("sqlite3")
+		exists = os.path.exists(Database.database)
 		# Since it's sqlite we just remove the old file, if this was an actual
 		# db we would drop from all the tables
-		if Database.clear_old_db:
-			if os.path.exists(Database.database):
-				os.remove(Database.database)
+		if Database.clear_old_db and exists:
+			os.remove(Database.database)
 		conn = sqlite3.connect(Database.database)
 		c = conn.cursor()
-		if Database.clear_old_db:
+		if Database.clear_old_db or not exists:
 			create_tables(c)
 	elif Database.type == DatabaseTypes.MYSQL:
-		pass
+		create_tables(c, drop_all = Database.clear_old_db)	
 	elif Database.type == DatabaseTypes.POSTGRE:
-		pass
+		psycopg2 = __import__("psycopg2")
+		conn = psycopg2.connect(database = Database.database, user = Database.user, password = Database.password)
+		c = conn.cursor()
+		create_tables(c, drop_all = Database.clear_old_db)
 	
 	if Options.use_native:
 		print "__main__ [status]: using native c parsing code."
