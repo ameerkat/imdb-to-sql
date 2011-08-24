@@ -19,5 +19,7 @@ by default. Note that you can use any database adapter you like in reality
 for postgres or otherwise provided it is [DB-API2](http://www.python.org/dev/peps/pep-0249/)
 compliant and provided you create a schema set for it in the schema folder and
 that you put in the code to load the schema given the database type in the
-`create_tables` function.
+`create_tables` function. You may have to create your own drop table query
+specific for the database if it does not support the `DROP TABLE IF EXISTS`
+syntax.
 

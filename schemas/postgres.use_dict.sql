@@ -20,7 +20,7 @@ CREATE TABLE acted_in (
     idmovies integer NOT NULL,
     idseries integer,
     idactors integer NOT NULL,
-    "character" character varying(255) NOT NULL,
+    "character" character varying(255),
     billing_position integer
 );
 
@@ -54,7 +54,7 @@ ALTER SEQUENCE acted_in_idacted_in_seq OWNED BY acted_in.idacted_in;
 
 CREATE TABLE actors (
     idactors integer NOT NULL,
-    lname character varying(255) NOT NULL,
+    lname character varying(255),
     fname character varying(255) NOT NULL,
     mname character varying(255),
     gender integer,
@@ -165,7 +165,7 @@ ALTER TABLE public.keywords OWNER TO postgres;
 CREATE TABLE movies (
     idmovies integer NOT NULL,
     title character varying(255) NOT NULL,
-    year integer NOT NULL,
+    year integer,
     number integer,
     type integer,
     location character varying(63),

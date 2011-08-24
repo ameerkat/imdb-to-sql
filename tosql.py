@@ -19,6 +19,7 @@ class DatabaseTypes:
 class Database:
 	type 		= DatabaseTypes.POSTGRES# database type, one of DatabaseTypes
 	database 	= "imdb_data"			# database name
+	encoding 	= "utf-8"
 	host 		= "127.0.0.1"			# database host
 	user 		= "postgres"			# database username
 	password 	= "password"			# database password
@@ -30,8 +31,8 @@ class Options:
 	file_extension 		= ".list"		# file extension for the imdb list files
 	query_debug 		= False			# show log of all sql queries at construction time
 	show_progress 		= True			# show progress (at all)
-	progress_count 		= 100000		# show progress every _n_ lines
-	commit_count 		= 100000		# commit every _n_ lines, -1 means only on completion
+	progress_count 		= 10000			# show progress every _n_ lines
+	commit_count 		= 10000			# commit every _n_ lines, -1 means only on completion
 										# database will commit on completion of each file regardless
 	show_time 			= True			# show the total time taken to complete
 	use_native			= False			# use native parsing operations instead of regex
@@ -160,6 +161,10 @@ def mk_cache(name):
 	return "%s/%s.cache" % (Options.cache_dir, name)
 
 
+def mk_drop(name):
+	return "%s/%s.drop.sql" % (Options.schema_dir, name)
+
+
 def create_tables(c, drop_all = False):
 	""" Create Tables
 	As per schema (refer to imdb.db.png (image) or imdb.mwb (mysql workbench))
@@ -170,20 +175,44 @@ def create_tables(c, drop_all = False):
 	autoincrement = " autoincrement"
 	global Options, Database
 	if drop_all:
-		c.execute("DROP TABLE *")
+		print "create_tables [status]: dropping tables initiated."
+		if Database.type == DatabaseTypes.SQLITE:
+			drop_sql = open(mk_drop("sqlite")).read()
+		elif Database.type == DatabaseTypes.MYSQL:
+			drop_sql = open(mk_drop("mysql")).read()
+		elif Database.type == DatabaseTypes.POSTGRES:
+			drop_sql = open(mk_drop("postgres")).read()
+		drop_list = drop_sql.split(";")
+		for line in drop_list:
+			query = line.strip()
+			if query:
+				c.execute(line)
+		print "create_tables [status]: dropping tables complete."
 	if Database.type == DatabaseTypes.SQLITE:
 		dbf = open(mk_schema("sqlite", Options.use_dict))
+		query_list = dbf.read()
+		c.executescript(query_list)
 	elif Database.type == DatabaseTypes.MYSQL:
 		dbf = open(mk_schema("mysql", Options.use_dict))
 	elif Database.type == DatabaseTypes.POSTGRES:
 		dbf = open(mk_schema("postgres", Options.use_dict))
-	query_list = dbf.read()
-	c.executescript(query_list)
+		query_list_candidates = dbf.readlines()
+		query_list = []
+		for line in query_list_candidates:
+			if line.startswith("--"):
+				pass
+			else:
+				if line.strip() != "":
+					query_list.append(line.strip())
+		query_list = " ".join(query_list).split(';')
+		for query in query_list:
+			if query.strip():
+				c.execute(query.strip())
 
 
 def quote_escape(string):
 	if string:
-		return string.replace("\"", "\"\"")
+		return string.replace("\"", "\"\"").replace("\'", "\'\'")
 	else:
 		return None
 
@@ -207,6 +236,7 @@ def build_select_query(name, param_dict):
 
 
 def build_insert_query(name, param_dict):
+	global Database
 	if not param_dict:
 		print "build_insert_query: error param dictionary is empty!"
 		return None
@@ -217,11 +247,14 @@ def build_insert_query(name, param_dict):
 			insert_query_front += k + ", "
 			if isinstance(v, StringType):
 				# surround with quotes if string
-				insert_query_end += "\"" + quote_escape(v)  + "\", "
+				insert_query_end += "\'" + quote_escape(v)  + "\', "
 			else:
 				insert_query_end +=  str(v)  + ", "
 	# remove the trailing comma/spaces with [:-2]
 	insert_query = insert_query_front[:-2] + insert_query_end[:-2] + ")"
+	if Database.encoding:
+		# preconvert to db encoding to avoid db errors, especially from postgres / utf-8
+		insert_query = insert_query.decode(Database.encoding, errors='ignore')
 	if Options.query_debug:
 		print insert_query
 	return insert_query

@@ -1,0 +1,21 @@
+DROP TABLE IF EXISTS public.series;
+DROP TABLE IF EXISTS public.movies_keywords;
+DROP TABLE IF EXISTS public.movies_genres;
+DROP TABLE IF EXISTS public.movies;
+DROP TABLE IF EXISTS public.keywords;
+DROP TABLE IF EXISTS public.genres;
+DROP TABLE IF EXISTS public.aka_titles;
+DROP TABLE IF EXISTS public.aka_names;
+DROP TABLE IF EXISTS public.actors;
+DROP TABLE IF EXISTS public.acted_in;
+DROP SEQUENCE IF EXISTS public.movies_keywords_idmovies_keywords_seq;
+DROP SEQUENCE IF EXISTS public.movies_idmovies_seq;
+DROP SEQUENCE IF EXISTS public.movies_genres_idmovies_genres_seq;
+DROP SEQUENCE IF EXISTS public.keywords_idkeywords_seq;
+DROP SEQUENCE IF EXISTS public.genres_idgenres_seq;
+DROP SEQUENCE IF EXISTS public.aka_titles_idaka_titles_seq;
+DROP SEQUENCE IF EXISTS public.aka_names_idaka_names_seq;
+DROP SEQUENCE IF EXISTS public.actors_idactors_seq;
+DROP SEQUENCE IF EXISTS public.acted_in_idacted_in_seq;
+DROP SEQUENCE IF EXISTS public.series_id_series_seq;
+
