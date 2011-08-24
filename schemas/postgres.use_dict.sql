@@ -114,7 +114,7 @@ ALTER TABLE public.genres OWNER TO postgres;
 -- Name: idaka_titles; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
 --
 
-CREATE TABLE idaka_titles (
+CREATE TABLE aka_titles (
     idaka_titles integer NOT NULL,
     idmovies integer NOT NULL,
     title character varying(255) NOT NULL,
@@ -123,13 +123,13 @@ CREATE TABLE idaka_titles (
 );
 
 
-ALTER TABLE public.idaka_titles OWNER TO postgres;
+ALTER TABLE public.aka_titles OWNER TO postgres;
 
 --
 -- Name: idaka_titles_idaka_titles_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
-CREATE SEQUENCE idaka_titles_idaka_titles_seq
+CREATE SEQUENCE aka_titles_idaka_titles_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -137,13 +137,13 @@ CREATE SEQUENCE idaka_titles_idaka_titles_seq
     CACHE 1;
 
 
-ALTER TABLE public.idaka_titles_idaka_titles_seq OWNER TO postgres;
+ALTER TABLE public.aka_titles_idaka_titles_seq OWNER TO postgres;
 
 --
 -- Name: idaka_titles_idaka_titles_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-ALTER SEQUENCE idaka_titles_idaka_titles_seq OWNED BY idaka_titles.idaka_titles;
+ALTER SEQUENCE aka_titles_idaka_titles_seq OWNED BY aka_titles.idaka_titles;
 
 
 --
@@ -278,7 +278,7 @@ ALTER TABLE aka_names ALTER COLUMN idaka_names SET DEFAULT nextval('aka_names_id
 -- Name: idaka_titles; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE idaka_titles ALTER COLUMN idaka_titles SET DEFAULT nextval('idaka_titles_idaka_titles_seq'::regclass);
+ALTER TABLE aka_titles ALTER COLUMN idaka_titles SET DEFAULT nextval('aka_titles_idaka_titles_seq'::regclass);
 
 
 --
@@ -331,8 +331,8 @@ ALTER TABLE ONLY genres
 -- Name: idaka_titles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres; Tablespace: 
 --
 
-ALTER TABLE ONLY idaka_titles
-    ADD CONSTRAINT idaka_titles_pkey PRIMARY KEY (idaka_titles);
+ALTER TABLE ONLY aka_titles
+    ADD CONSTRAINT aka_titles_pkey PRIMARY KEY (idaka_titles);
 
 
 --
