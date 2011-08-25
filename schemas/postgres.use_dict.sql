@@ -20,7 +20,7 @@ CREATE TABLE acted_in (
     idmovies integer NOT NULL,
     idseries integer,
     idactors integer NOT NULL,
-    "character" character varying(511),
+    "character" character varying(1023),
     billing_position integer
 );
 
@@ -54,9 +54,9 @@ ALTER SEQUENCE acted_in_idacted_in_seq OWNED BY acted_in.idacted_in;
 
 CREATE TABLE actors (
     idactors integer NOT NULL,
-    lname character varying(511),
-    fname character varying(511) NOT NULL,
-    mname character varying(511),
+    lname character varying(1023),
+    fname character varying(1023) NOT NULL,
+    mname character varying(1023),
     gender integer,
     number integer
 );
@@ -71,7 +71,7 @@ ALTER TABLE public.actors OWNER TO postgres;
 CREATE TABLE aka_names (
     idaka_names integer NOT NULL,
     idactors integer NOT NULL,
-    name character varying(511) NOT NULL
+    name character varying(1023) NOT NULL
 );
 
 
@@ -104,7 +104,7 @@ ALTER SEQUENCE aka_names_idaka_names_seq OWNED BY aka_names.idaka_names;
 
 CREATE TABLE genres (
     idgenres integer NOT NULL,
-    genre character varying(63) NOT NULL
+    genre character varying(511) NOT NULL
 );
 
 
@@ -117,7 +117,7 @@ ALTER TABLE public.genres OWNER TO postgres;
 CREATE TABLE aka_titles (
     idaka_titles integer NOT NULL,
     idmovies integer NOT NULL,
-    title character varying(511) NOT NULL,
+    title character varying(1023) NOT NULL,
     location character varying(63),
     year integer
 );
@@ -152,7 +152,7 @@ ALTER SEQUENCE aka_titles_idaka_titles_seq OWNED BY aka_titles.idaka_titles;
 
 CREATE TABLE keywords (
     idkeywords integer NOT NULL,
-    keyword character varying(63) NOT NULL
+    keyword character varying(255) NOT NULL
 );
 
 
@@ -164,7 +164,7 @@ ALTER TABLE public.keywords OWNER TO postgres;
 
 CREATE TABLE movies (
     idmovies integer NOT NULL,
-    title character varying(511) NOT NULL,
+    title character varying(1023) NOT NULL,
     year integer,
     number integer,
     type integer,
@@ -252,7 +252,7 @@ ALTER SEQUENCE movies_keywords_idmovies_keywords_seq OWNED BY movies_keywords.id
 CREATE TABLE series (
     idseries integer NOT NULL,
     idmovies integer NOT NULL,
-    name character varying(511),
+    name character varying(1023),
     season integer,
     number integer
 );

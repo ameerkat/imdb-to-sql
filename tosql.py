@@ -212,7 +212,7 @@ def create_tables(c, drop_all = False):
 
 def quote_escape(string):
 	if string:
-		return string.replace("\"", "\"\"").replace("\'", "\'\'")
+		return string.replace("\"", "\"\"").replace("\'", "\'\'").replace("\\", "/")
 	else:
 		return None
 
