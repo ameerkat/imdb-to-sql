@@ -17,11 +17,11 @@ class DatabaseTypes:
 # script configuration
 # database options
 class Database:
-	type 		= DatabaseTypes.POSTGRES# database type, one of DatabaseTypes
+	type 		= DatabaseTypes.MYSQL 	# database type, one of DatabaseTypes
 	database 	= "imdb_data"			# database name
 	encoding 	= "utf-8"
 	host 		= "127.0.0.1"			# database host
-	user 		= "postgres"			# database username
+	user 		= "root"				# database username
 	password 	= "password"			# database password
 	clear_old_db = True					# clear old database information if exists
 
@@ -165,6 +165,23 @@ def mk_drop(name):
 	return "%s/%s.drop.sql" % (Options.schema_dir, name)
 
 
+def executescript(c, of):
+	"""Executes a SQL script by processing out comments and executing each sql
+	command individually."""
+	query_list_candidate = of.readlines()
+	for line in query_list_candidates:
+		# process out comment lines
+		if line.startswith("--"):
+			pass
+		else:
+			if line.strip() != "":
+				query_list.append(line.strip())
+	query_list = " ".join(query_list).split(';')
+	for query in query_list:
+		if query.strip():
+			c.execute(query.strip())
+
+
 def create_tables(c, drop_all = False):
 	""" Create Tables
 	As per schema (refer to imdb.db.png (image) or imdb.mwb (mysql workbench))
@@ -194,21 +211,10 @@ def create_tables(c, drop_all = False):
 		c.executescript(query_list)
 	elif Database.type == DatabaseTypes.MYSQL:
 		dbf = open(mk_schema("mysql", Options.use_dict))
+		executescript(c, dbf)
 	elif Database.type == DatabaseTypes.POSTGRES:
 		dbf = open(mk_schema("postgres", Options.use_dict))
-		query_list_candidates = dbf.readlines()
-		query_list = []
-		for line in query_list_candidates:
-			if line.startswith("--"):
-				pass
-			else:
-				if line.strip() != "":
-					query_list.append(line.strip())
-		query_list = " ".join(query_list).split(';')
-		for query in query_list:
-			if query.strip():
-				c.execute(query.strip())
-
+		executescript(c, dbf)
 
 def quote_escape(string):
 	if string:
@@ -402,7 +408,10 @@ if __name__ == "__main__":
 		if Database.clear_old_db or not exists:
 			create_tables(c)
 	elif Database.type == DatabaseTypes.MYSQL:
-		create_tables(c, drop_all = Database.clear_old_db)	
+		MySQLdb = __import__("MySQLdb")
+		conn = MySQLdb.connect(host = Database.host, database = database.database, user = Database.user, password = Database.password)
+		c = conn.cursor()
+		create_tables(c, drop_all = Database.clear_old_db)
 	elif Database.type == DatabaseTypes.POSTGRES:
 		psycopg2 = __import__("psycopg2")
 		conn = psycopg2.connect(host = Database.host, database = Database.database, user = Database.user, password = Database.password)
