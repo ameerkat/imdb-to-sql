@@ -168,6 +168,7 @@ def mk_drop(name):
 def executescript(c, of):
 	"""Executes a SQL script by processing out comments and executing each sql
 	command individually."""
+	query_list = []
 	query_list_candidates = of.readlines()
 	for line in query_list_candidates:
 		# process out comment lines
