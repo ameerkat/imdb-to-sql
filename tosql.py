@@ -242,19 +242,22 @@ def build_select_query(name, param_dict):
 	return select_query
 
 
-def build_insert_query(name, param_dict):
+def build_insert_query(name, param_dict, quote_keys = True):
 	global Database
 	if not param_dict:
-		print "build_insert_query: error param dictionary is empty!"
+		print "build_insert_query: [error] param dictionary is empty!"
 		return None
 	insert_query_front = "INSERT INTO " + name + " ("
 	insert_query_end = ") VALUES ("
 	for k,v in param_dict.items():
 		if v:
-			insert_query_front += k + ", "
+			if quote_keys:
+				insert_query_front += "`" + k + "`, "
+			else:
+				insert_query_front += k + ", "
 			if isinstance(v, StringType):
 				# surround with quotes if string
-				insert_query_end += "\'" + quote_escape(v)  + "\', "
+				insert_query_end += "\'" + quote_escape(v) + "\', "
 			else:
 				insert_query_end +=  str(v)  + ", "
 	# remove the trailing comma/spaces with [:-2]
@@ -312,7 +315,7 @@ def select_or_insert(connection_cursor, name, param_dict, skip_lookup = False, s
 			if row:
 				return row[0]
 			else:
-				print "select_or_insert: error could not insert : ", param_dict
+				print "select_or_insert: [error] could not insert : ", param_dict
 				return None
 		else:
 			return None
