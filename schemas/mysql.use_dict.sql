@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `acted_in` (
   `idmovies` int(11) NOT NULL,
   `idseries` int(11) DEFAULT NULL,
   `idactors` int(11) NOT NULL,
-  `character` varchar(255) NOT NULL,
+  `character` varchar(1023) NOT NULL,
   `billing_position` int(11) DEFAULT NULL,
   PRIMARY KEY (`idacted_in`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
@@ -29,9 +29,9 @@ CREATE TABLE IF NOT EXISTS `acted_in` (
 
 CREATE TABLE IF NOT EXISTS `actors` (
   `idactors` int(11) NOT NULL,
-  `lname` varchar(255) NOT NULL,
-  `fname` varchar(255) NOT NULL,
-  `mname` varchar(255) DEFAULT NULL,
+  `lname` varchar(1023) NOT NULL,
+  `fname` varchar(1023) NOT NULL,
+  `mname` varchar(1023) DEFAULT NULL,
   `gender` int(11) NOT NULL,
   `number` int(11) DEFAULT NULL,
   PRIMARY KEY (`idactors`)
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `actors` (
 CREATE TABLE IF NOT EXISTS `aka_names` (
   `idaka_names` int(11) NOT NULL AUTO_INCREMENT,
   `idactors` int(11) NOT NULL,
-  `name` varchar(255) NOT NULL,
+  `name` varchar(1023) NOT NULL,
   PRIMARY KEY (`idaka_names`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
 
@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS `aka_names` (
 CREATE TABLE IF NOT EXISTS `aka_titles` (
   `idaka_titles` int(11) NOT NULL AUTO_INCREMENT,
   `idmovies` int(11) NOT NULL,
-  `title` varchar(255) NOT NULL,
-  `location` varchar(63) DEFAULT NULL,
+  `title` varchar(1023) NOT NULL,
+  `location` varchar(127) DEFAULT NULL,
   `year` year(4) DEFAULT NULL,
   PRIMARY KEY (`idaka_titles`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `aka_titles` (
 
 CREATE TABLE IF NOT EXISTS `genres` (
   `idgenres` int(11) NOT NULL,
-  `genre` varchar(63) NOT NULL,
+  `genre` varchar(127) NOT NULL,
   PRIMARY KEY (`idgenres`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -97,12 +97,12 @@ CREATE TABLE IF NOT EXISTS `keywords` (
 
 CREATE TABLE IF NOT EXISTS `movies` (
   `idmovies` int(11) NOT NULL,
-  `title` varchar(255) NOT NULL,
+  `title` varchar(1023) NOT NULL,
   `year` year(4) NOT NULL,
   `number` int(11) DEFAULT NULL,
   `type` int(11) DEFAULT NULL,
-  `location` varchar(63) DEFAULT NULL,
-  `language` varchar(63) DEFAULT NULL,
+  `location` varchar(127) DEFAULT NULL,
+  `language` varchar(127) DEFAULT NULL,
   PRIMARY KEY (`idmovies`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS `movies_keywords` (
 CREATE TABLE IF NOT EXISTS `series` (
   `idseries` int(11) NOT NULL,
   `idmovies` int(11) NOT NULL,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(1023) DEFAULT NULL,
   `season` int(11) DEFAULT NULL,
   `number` int(11) DEFAULT NULL,
   PRIMARY KEY (`idseries`)
