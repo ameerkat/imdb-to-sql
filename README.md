@@ -22,4 +22,20 @@ that you put in the code to load the schema given the database type in the
 `create_tables` function. You may have to create your own drop table query
 specific for the database if it does not support the `DROP TABLE IF EXISTS`
 syntax.
+## Using another DB-API2 client database adapter
+As stated above you may use any DB-API2 compliant adapter given you edit
+the script file and provide the schemas in the following way.
+1. Create a variable for the database type in the `DatabaseTypes` class.
+2. Add a condition to the `create_tables` function to drop and create
+your database. You may use the function `executescript` on open cursor/files
+to execute full SQL files, similar to the builtin capabilities of sqlite's
+`executescript` function.
+3. Add appropriate drop and create schemas to the schema folder, see
+the readme in the schema folder for naming conventions. In general these files
+are `db_name.sql`, `db_name.use_dict.sql` and `db_name.drop.sql`
+4. Add appropriate loading code to the start of the `__main__` section of the
+code, use the Database class to read in database parameters such as host, 
+user name/password and database names. Do not put an `import` statement at the
+top of the file, use the `__import__` function to load the database driver only
+if necessary and your database type is being used.
 
