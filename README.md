@@ -17,14 +17,13 @@ SQLite support is builtin for python 2.5+ so no additional modules are necessary
 to convert to a SQLite database. Postgres support is offered through [psycopg2](http://initd.org/psycopg/)
 by default. Note that you can use any database adapter you like in reality
 for postgres or otherwise provided it is [DB-API2](http://www.python.org/dev/peps/pep-0249/)
-compliant and provided you create a schema set for it in the schema folder and
-that you put in the code to load the schema given the database type in the
-`create_tables` function. You may have to create your own drop table query
-specific for the database if it does not support the `DROP TABLE IF EXISTS`
-syntax.
+compliant and provided you create a schema set for it in the schema folder see
+more details below. MySQL support is provided through [MySQLdb](http://sourceforge.net/projects/mysql-python/)
+
 ## Using another DB-API2 client database adapter
-As stated above you may use any DB-API2 compliant adapter given you edit
-the script file and provide the schemas in the following way.
+As stated above you may use any [DB-API2](http://www.python.org/dev/peps/pep-0249/)
+ compliant adapter given you edit the script file and provide the schemas in the following way:
+
 1. Create a variable for the database type in the `DatabaseTypes` class.
 2. Add a condition to the `create_tables` function to drop and create
 your database. You may use the function `executescript` on open cursor/files
