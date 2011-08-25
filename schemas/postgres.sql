@@ -20,7 +20,7 @@ CREATE TABLE acted_in (
     idmovies integer NOT NULL,
     idseries integer,
     idactors integer NOT NULL,
-    "character" character varying(255) NOT NULL,
+    "character" character varying(1023) NOT NULL,
     billing_position integer
 );
 
@@ -54,9 +54,9 @@ ALTER SEQUENCE acted_in_idacted_in_seq OWNED BY acted_in.idacted_in;
 
 CREATE TABLE actors (
     idactors integer NOT NULL,
-    lname character varying(255) NOT NULL,
-    fname character varying(255) NOT NULL,
-    mname character varying(255),
+    lname character varying(1023) NOT NULL,
+    fname character varying(1023) NOT NULL,
+    mname character varying(1023),
     gender integer,
     number integer
 );
@@ -92,7 +92,7 @@ ALTER SEQUENCE actors_idactors_seq OWNED BY actors.idactors;
 CREATE TABLE aka_names (
     idaka_names integer NOT NULL,
     idactors integer NOT NULL,
-    name character varying(255) NOT NULL
+    name character varying(1023) NOT NULL
 );
 
 
@@ -126,8 +126,8 @@ ALTER SEQUENCE aka_names_idaka_names_seq OWNED BY aka_names.idaka_names;
 CREATE TABLE aka_titles (
     idaka_titles integer NOT NULL,
     idmovies integer NOT NULL,
-    title character varying(255) NOT NULL,
-    location character varying(63),
+    title character varying(1023) NOT NULL,
+    location character varying(511),
     year integer
 );
 
@@ -161,7 +161,7 @@ ALTER SEQUENCE aka_titles_idaka_titles_seq OWNED BY aka_titles.idaka_titles;
 
 CREATE TABLE genres (
     idgenres integer NOT NULL,
-    genre character varying(63) NOT NULL
+    genre character varying(127) NOT NULL
 );
 
 
@@ -194,7 +194,7 @@ ALTER SEQUENCE genres_idgenres_seq OWNED BY genres.idgenres;
 
 CREATE TABLE keywords (
     idkeywords integer NOT NULL,
-    keyword character varying(63) NOT NULL
+    keyword character varying(127) NOT NULL
 );
 
 
@@ -227,12 +227,12 @@ ALTER SEQUENCE keywords_idkeywords_seq OWNED BY keywords.idkeywords;
 
 CREATE TABLE movies (
     idmovies integer NOT NULL,
-    title character varying(255) NOT NULL,
+    title character varying(1023) NOT NULL,
     year integer NOT NULL,
     number integer,
     type integer,
-    location character varying(63),
-    language character varying(63)
+    location character varying(127),
+    language character varying(127)
 );
 
 
@@ -336,7 +336,7 @@ ALTER SEQUENCE movies_keywords_idmovies_keywords_seq OWNED BY movies_keywords.id
 CREATE TABLE series (
     id_series integer NOT NULL,
     idmovies integer NOT NULL,
-    name character varying(255),
+    name character varying(1023),
     season integer,
     number integer
 );
