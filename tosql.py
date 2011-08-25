@@ -409,7 +409,7 @@ if __name__ == "__main__":
 			create_tables(c)
 	elif Database.type == DatabaseTypes.MYSQL:
 		MySQLdb = __import__("MySQLdb")
-		conn = MySQLdb.connect(host = Database.host, database = Database.database, user = Database.user, password = Database.password)
+		conn = MySQLdb.connect(host = Database.host, db = Database.database, user = Database.user, passwd = Database.password)
 		c = conn.cursor()
 		create_tables(c, drop_all = Database.clear_old_db)
 	elif Database.type == DatabaseTypes.POSTGRES:
