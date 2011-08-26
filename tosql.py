@@ -19,7 +19,8 @@ class DatabaseTypes:
 class Database:
 	type 		= DatabaseTypes.MYSQL 	# database type, one of DatabaseTypes
 	database 	= "imdb_data"			# database name
-	encoding 	= "utf-8"
+	encoding 	= "latin-1"				# used to pre-encode the queries to drop any invalid characters
+										# for the database type
 	host 		= "127.0.0.1"			# database host
 	user 		= "root"				# database username
 	password 	= "password"			# database password
@@ -223,7 +224,7 @@ def quote_escape(string):
 	else:
 		return None
 
-
+# @todo optimize the query building functions by using lists/join
 def build_select_query(name, param_dict):
 	if not param_dict:
 		print "build_select_query: error param dictionary is empty!"
