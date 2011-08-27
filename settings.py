@@ -1,3 +1,8 @@
+class DatabaseTypes:
+	SQLITE		= 0
+	MYSQL 		= 1
+	POSTGRES	= 2
+
 # script configuration
 # database options
 class Database:

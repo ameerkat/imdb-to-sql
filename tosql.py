@@ -8,12 +8,7 @@ import os
 from numerals import rntoi
 import time
 import cPickle as pickle
-from settings import Database, Options
-
-class DatabaseTypes:
-	SQLITE		= 0
-	MYSQL 		= 1
-	POSTGRES	= 2
+from settings import Database, Options, DatabaseTypes
 
 def get_schema_prefix(type_d):
 	if type_d == DatabaseTypes.SQLITE:

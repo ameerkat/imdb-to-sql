@@ -1,5 +1,5 @@
-from tosql import DatabaseTypes, executescript, get_schema_prefix
-from settings import Database, Options
+from tosql import executescript, get_schema_prefix
+from settings import Database, Options, DatabaseTypes
 
 def mk_index(name):
 	return "%s/%s.index.sql" % (Options.schema_dir, name)
