@@ -14,6 +14,16 @@ class DatabaseTypes:
 	MYSQL 		= 1
 	POSTGRES	= 2
 
+def get_schema_prefix(type_d):
+	if type_d == DatabaseTypes.SQLITE:
+		return "sqlite"
+	elif type_d == DatabaseTypes.MYSQL:
+		return "mysql"
+	elif type_d == DatabaseTypes.POSTGRES:
+		return "postgres"
+	else:
+		return None
+
 # script configuration
 # database options
 class Database:
@@ -166,7 +176,7 @@ def mk_drop(name):
 	return "%s/%s.drop.sql" % (Options.schema_dir, name)
 
 
-def executescript(c, of):
+def executescript(c, of, debug = False):
 	"""Executes a SQL script by processing out comments and executing each sql
 	command individually."""
 	query_list = []
@@ -181,6 +191,8 @@ def executescript(c, of):
 	query_list = " ".join(query_list).split(';')
 	for query in query_list:
 		if query.strip():
+			if debug = True:
+				print "executescript [status] : executing query:\n\t%s\n" % (query.strip())
 			c.execute(query.strip())
 
 
@@ -372,6 +384,42 @@ def load_dict(name, force_load = False):
 			return False
 
 
+def connect_db(db, create_tables_enabled = False):
+	# Create tables enabled is there to provide a hard switch to stopping
+	# tables from being created, in the case of getting a connection to do
+	# indexing we don't want to accidently clear the database
+	# Initialize Database
+	conn = None
+	c = None
+	if db.type == DatabaseTypes.SQLITE:
+		sqlite3 = __import__("sqlite3")
+		exists = os.path.exists(Database.database)
+		# Since it's sqlite we just remove the old file, if this was an actual
+		# db we would drop from all the tables
+		if db.clear_old_db and exists:
+			os.remove(db.database)
+		conn = sqlite3.connect(db.database)
+		c = conn.cursor()
+		if (db.clear_old_db or not exists) and create_tables_enabled:
+			create_tables(c)
+	elif db.type == DatabaseTypes.MYSQL:
+		MySQLdb = __import__("MySQLdb")
+		conn = MySQLdb.connect(host = db.host, db = db.database, user = db.user, passwd = db.password)
+		c = conn.cursor()
+		if create_tables_enabled:		
+			create_tables(c, drop_all = db.clear_old_db)
+	elif db.type == DatabaseTypes.POSTGRES:
+		psycopg2 = __import__("psycopg2")
+		conn = psycopg2.connect(host = db.host, database = db.database, user = db.user, password = db.password)
+		c = conn.cursor()
+		if create_tables_enabled:
+			create_tables(c, drop_all = db.clear_old_db)
+	else:
+		print "__main__ [error]: unknown database type #%d." % (db.type)
+		quit()
+	return conn, c
+
+
 if __name__ == "__main__":
 	if Options.show_time:
 		start = time.clock()
@@ -398,33 +446,7 @@ if __name__ == "__main__":
 		"keywords": False
 	}
 	
-	# Initialize Database
-	conn = None
-	c = None
-	if Database.type == DatabaseTypes.SQLITE:
-		sqlite3 = __import__("sqlite3")
-		exists = os.path.exists(Database.database)
-		# Since it's sqlite we just remove the old file, if this was an actual
-		# db we would drop from all the tables
-		if Database.clear_old_db and exists:
-			os.remove(Database.database)
-		conn = sqlite3.connect(Database.database)
-		c = conn.cursor()
-		if Database.clear_old_db or not exists:
-			create_tables(c)
-	elif Database.type == DatabaseTypes.MYSQL:
-		MySQLdb = __import__("MySQLdb")
-		conn = MySQLdb.connect(host = Database.host, db = Database.database, user = Database.user, passwd = Database.password)
-		c = conn.cursor()
-		create_tables(c, drop_all = Database.clear_old_db)
-	elif Database.type == DatabaseTypes.POSTGRES:
-		psycopg2 = __import__("psycopg2")
-		conn = psycopg2.connect(host = Database.host, database = Database.database, user = Database.user, password = Database.password)
-		c = conn.cursor()
-		create_tables(c, drop_all = Database.clear_old_db)
-	else:
-		print "__main__ [error]: unknown database type %d." % (Database.type)
-		quit()
+	conn, c = connect_db(Database, create_tables_enabled = True)
 	
 	if Options.use_native:
 		print "__main__ [status]: using native c parsing code."
