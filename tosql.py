@@ -157,7 +157,7 @@ def executescript(c, of, debug = False):
 	query_list = " ".join(query_list).split(';')
 	for query in query_list:
 		if query.strip():
-			if debug = True:
+			if debug:
 				print "executescript [status] : executing query:\n\t%s\n" % (query.strip())
 			c.execute(query.strip())
 
