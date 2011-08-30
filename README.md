@@ -10,7 +10,12 @@ supports conversion to sqlite and postgres sql databases.
 # Usage
 To use first configure the script by going to the top of the script and modifying
 the Database and Options classes. Once configured run `python tosql.py`, the
-script should notify you as it processes the various files.
+script should notify you as it processes the various files. There is also a script
+called `index.py` that will let you add the indices to the database after adding
+all the data. This script relies on components of the tosql script so the tosql script
+must be in the same directory or on the path. Full indexing either in database or
+through an external data structure will be added soon to allow autocomplete
+and partial title searches.
 
 # Dependencies
 SQLite support is builtin for python 2.5+ so no additional modules are necessary

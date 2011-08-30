@@ -6,12 +6,12 @@ class DatabaseTypes:
 # script configuration
 # database options
 class Database:
-	type 		= DatabaseTypes.MYSQL 	# database type, one of DatabaseTypes
+	type 		= DatabaseTypes.SQLITE# database type, one of DatabaseTypes
 	database 	= "imdb_data"			# database name
-	encoding 	= "latin-1"				# used to pre-encode the queries to drop any invalid characters
+	encoding 	= "utf-8"				# used to pre-encode the queries to drop any invalid characters
 										# for the database type
 	host 		= "127.0.0.1"			# database host
-	user 		= "root"				# database username
+	user 		= "postgres"			# database username
 	password 	= "password"			# database password
 	clear_old_db = False				# clear old database information if exists
 
