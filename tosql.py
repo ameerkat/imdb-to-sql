@@ -221,7 +221,7 @@ def build_select_query(name, param_dict):
 	return select_query
 
 
-def build_insert_query(name, param_dict, quote_keys = True):
+def build_insert_query(name, param_dict, quote_keys = False):
 	global Database
 	if not param_dict:
 		print "build_insert_query: [error] param dictionary is empty!"
