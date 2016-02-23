@@ -25,7 +25,6 @@ CREATE TABLE acted_in (
 );
 
 
-ALTER TABLE public.acted_in OWNER TO postgres;
 
 --
 -- Name: acted_in_idacted_in_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -39,7 +38,6 @@ CREATE SEQUENCE acted_in_idacted_in_seq
     CACHE 1;
 
 
-ALTER TABLE public.acted_in_idacted_in_seq OWNER TO postgres;
 
 --
 -- Name: acted_in_idacted_in_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -62,7 +60,6 @@ CREATE TABLE actors (
 );
 
 
-ALTER TABLE public.actors OWNER TO postgres;
 
 --
 -- Name: aka_names; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
@@ -75,7 +72,6 @@ CREATE TABLE aka_names (
 );
 
 
-ALTER TABLE public.aka_names OWNER TO postgres;
 
 --
 -- Name: aka_names_idaka_names_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -89,7 +85,6 @@ CREATE SEQUENCE aka_names_idaka_names_seq
     CACHE 1;
 
 
-ALTER TABLE public.aka_names_idaka_names_seq OWNER TO postgres;
 
 --
 -- Name: aka_names_idaka_names_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -108,7 +103,6 @@ CREATE TABLE genres (
 );
 
 
-ALTER TABLE public.genres OWNER TO postgres;
 
 --
 -- Name: idaka_titles; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
@@ -123,7 +117,6 @@ CREATE TABLE aka_titles (
 );
 
 
-ALTER TABLE public.aka_titles OWNER TO postgres;
 
 --
 -- Name: idaka_titles_idaka_titles_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -137,7 +130,6 @@ CREATE SEQUENCE aka_titles_idaka_titles_seq
     CACHE 1;
 
 
-ALTER TABLE public.aka_titles_idaka_titles_seq OWNER TO postgres;
 
 --
 -- Name: idaka_titles_idaka_titles_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -156,7 +148,6 @@ CREATE TABLE keywords (
 );
 
 
-ALTER TABLE public.keywords OWNER TO postgres;
 
 --
 -- Name: movies; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
@@ -173,7 +164,6 @@ CREATE TABLE movies (
 );
 
 
-ALTER TABLE public.movies OWNER TO postgres;
 
 --
 -- Name: movies_genres; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
@@ -187,7 +177,6 @@ CREATE TABLE movies_genres (
 );
 
 
-ALTER TABLE public.movies_genres OWNER TO postgres;
 
 --
 -- Name: movies_genres_idmovies_genres_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -201,7 +190,6 @@ CREATE SEQUENCE movies_genres_idmovies_genres_seq
     CACHE 1;
 
 
-ALTER TABLE public.movies_genres_idmovies_genres_seq OWNER TO postgres;
 
 --
 -- Name: movies_genres_idmovies_genres_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -222,7 +210,6 @@ CREATE TABLE movies_keywords (
 );
 
 
-ALTER TABLE public.movies_keywords OWNER TO postgres;
 
 --
 -- Name: movies_keywords_idmovies_keywords_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -236,7 +223,6 @@ CREATE SEQUENCE movies_keywords_idmovies_keywords_seq
     CACHE 1;
 
 
-ALTER TABLE public.movies_keywords_idmovies_keywords_seq OWNER TO postgres;
 
 --
 -- Name: movies_keywords_idmovies_keywords_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -258,7 +244,6 @@ CREATE TABLE series (
 );
 
 
-ALTER TABLE public.series OWNER TO postgres;
 
 --
 -- Name: idacted_in; Type: DEFAULT; Schema: public; Owner: postgres
@@ -383,4 +368,3 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 REVOKE ALL ON SCHEMA public FROM postgres;
 GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
-
